@@ -1,0 +1,108 @@
+<UserControl x:Class="PigeonFancierTracker.App.PigeonHistoryView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        MinHeight="520"
+        MinWidth="980"
+        Background="#F4F7FB">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="White" Padding="20,14" BorderBrush="#D9E2EC" BorderThickness="0,0,0,1">
+            <StackPanel>
+                <TextBlock Text="Duivengeschiedenis" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Text="Alle geslaagde lokale momentopnames worden gecombineerd in de tijdlijn van elke duif. Er wordt geen nieuw spelverzoek gedaan door deze pagina." Foreground="#52606D" FontSize="12" Margin="0,3,0,0" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Background="White" Padding="20,14" BorderBrush="#D9E2EC" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="280" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Duif" Foreground="#52606D" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <ComboBox x:Name="PigeonSelector"
+                          Grid.Column="1"
+                          DisplayMemberPath="DisplayName"
+                          SelectedValuePath="SourceId"
+                          SelectionChanged="PigeonSelector_SelectionChanged"
+                          MinWidth="240"
+                          Padding="8,5" />
+                <TextBlock x:Name="HistoryStatusText" Grid.Column="2" Text="Lokale geschiedenis laden…" Foreground="#52606D" VerticalAlignment="Center" Margin="18,0,0,0" />
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock x:Name="PigeonTitleText" Text="Selecteer een duif" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" />
+                        <TextBlock x:Name="PigeonSummaryText" Foreground="#52606D" Margin="0,5,0,0" />
+                        <UniformGrid Columns="5" Margin="0,18,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Laatste totale vaardigheid" Foreground="#52606D" />
+                                <TextBlock x:Name="LatestTotalSkillText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Verandering sinds eerste" Foreground="#52606D" />
+                                <TextBlock x:Name="TotalSkillChangeText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Laatste premie/waarde" Foreground="#52606D" />
+                                <TextBlock x:Name="LatestPremiumText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Waarnemingen" Foreground="#52606D" />
+                                <TextBlock x:Name="ObservationCountText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Laatst waargenomen" Foreground="#52606D" />
+                                <TextBlock x:Name="LatestObservedText" Text="—" Foreground="#1D3557" FontSize="14" FontWeight="SemiBold" Margin="0,7,0,0" />
+                            </StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="White" CornerRadius="10" Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="Vaardigheidgeschiedenis" Foreground="#1D3557" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="Elke rij vertegenwoordigt een verandering in statistieken. Dubbele momentopnames zonder wijzigingen worden verborgen." Foreground="#52606D" Margin="0,5,0,14" />
+                        <DataGrid x:Name="HistoryGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  HeadersVisibility="Column"
+                                  MinHeight="220"
+                                  MaxHeight="520"
+                                  GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Waargenomen" Binding="{Binding ObservedAtUtc, StringFormat={}{0:g}}" Width="145" />
+                                <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="75" />
+                                <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Mid" Binding="{Binding MediumDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Vrm" Binding="{Binding FormDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Erv" Binding="{Binding ExperienceDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Con" Binding="{Binding StaminaDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Snh" Binding="{Binding SpeedDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Nav" Binding="{Binding NavigationDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Tec" Binding="{Binding TechniqueDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Aer" Binding="{Binding AerodynamicsDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Int" Binding="{Binding IntelligenceDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Lib" Binding="{Binding LibidoDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Nz" Binding="{Binding NightvisionDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Premie" Binding="{Binding Premium, StringFormat={}{0:C2}}" Width="90" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

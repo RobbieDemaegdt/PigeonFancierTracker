@@ -1,0 +1,122 @@
+<UserControl x:Class="PigeonFancierTracker.App.ConnectionView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        MinWidth="420"
+        Background="{StaticResource PageBackgroundBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border x:Name="ConnectionStatusBanner" Grid.Row="0" Grid.RowSpan="2" Background="{StaticResource NeutralBannerBrush}" Padding="16" Margin="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="ConnectionStatusTitle" Text="Verbind je account" Foreground="{StaticResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock x:Name="ConnectionStatusDescription" Text="Voer je gegevens in om aan te melden." Foreground="{StaticResource BodyTextBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,4,12,0" />
+                    <TextBlock x:Name="FancierText" Text="Geen melker geselecteerd" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                    <TextBlock x:Name="LastCheckedText" Text="Nog niet gecontroleerd" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,3,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="PrimaryConnectionAction" Content="Aanmelden" Style="{StaticResource PrimaryButtonStyle}" Click="PrimaryConnectionAction_Click" />
+                    <Button x:Name="CheckConnectionButton" Content="Verbinding controleren" Style="{StaticResource SecondaryButtonStyle}" Click="CheckConnection_Click" Margin="8,0,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="16,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border x:Name="StepOneBorder" Grid.Column="0" Background="#E8EEF5" CornerRadius="7" Padding="12" Margin="0,0,6,0">
+                <StackPanel>
+                    <TextBlock Text="1  AANMELDEN" Foreground="{StaticResource HeadingTextBrush}" FontWeight="SemiBold" />
+                    <TextBlock x:Name="StepOneText" Text="Voer je e-mailadres en wachtwoord in" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+            <Border x:Name="StepTwoBorder" Grid.Column="1" Background="#E8EEF5" CornerRadius="7" Padding="12" Margin="3,0">
+                <StackPanel>
+                    <TextBlock Text="2  MELKER SELECTEREN" Foreground="{StaticResource HeadingTextBrush}" FontWeight="SemiBold" />
+                    <TextBlock x:Name="StepTwoText" Text="Kies een account" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+            <Border x:Name="StepThreeBorder" Grid.Column="2" Background="#E8EEF5" CornerRadius="7" Padding="12" Margin="6,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="3  KLAAR OM TE SYNCHRONISEREN" Foreground="{StaticResource HeadingTextBrush}" FontWeight="SemiBold" />
+                    <TextBlock x:Name="StepThreeText" Text="Terug naar Dashboard" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Margin="16,0,16,12">
+            <StackPanel>
+                <!-- Login Form -->
+                <Border x:Name="LoginPanel" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="20" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Aanmelden" Foreground="{StaticResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,14" />
+
+                        <TextBlock Text="E-mailadres" Foreground="{StaticResource BodyTextBrush}" FontSize="13" Margin="0,0,0,4" />
+                        <TextBox x:Name="EmailTextBox" FontSize="14" Padding="8,6" Margin="0,0,0,12" />
+
+                        <TextBlock Text="Wachtwoord" Foreground="{StaticResource BodyTextBrush}" FontSize="13" Margin="0,0,0,4" />
+                        <PasswordBox x:Name="PasswordBox" FontSize="14" Padding="8,6" Margin="0,0,0,12" KeyDown="PasswordBox_KeyDown" />
+
+                        <CheckBox x:Name="RememberCredentialsCheckBox" Content="Onthoud mijn gegevens" Foreground="{StaticResource BodyTextBrush}" Margin="0,0,0,14" />
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="LoginButton" Content="Aanmelden" Style="{StaticResource PrimaryButtonStyle}" Click="Login_Click" />
+                            <Button x:Name="LogoutButton" Content="Uitloggen" Style="{StaticResource SecondaryButtonStyle}" Click="Logout_Click" Margin="8,0,0,0" Visibility="Collapsed" />
+                        </StackPanel>
+
+                        <TextBlock x:Name="LoginErrorText" Foreground="#C0392B" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Fancier Selector -->
+                <Border x:Name="FancierSelectorPanel" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="20" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Selecteer een melker" Foreground="{StaticResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,14" />
+                        <TextBlock Text="Kies het melkeraccount dat je wilt volgen." Foreground="{StaticResource MutedTextBrush}" FontSize="13" Margin="0,0,0,10" />
+                        <ComboBox x:Name="FancierComboBox" FontSize="14" Padding="8,6" Margin="0,0,0,12" DisplayMemberPath="DisplayName" />
+                        <Button x:Name="SelectFancierButton" Content="Bevestigen" Style="{StaticResource PrimaryButtonStyle}" Click="SelectFancier_Click" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Sync -->
+                <Border x:Name="SyncPanel" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="20" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Synchroniseren" Foreground="{StaticResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                                <Button x:Name="RunSyncButton" Content="Nu synchroniseren" Style="{StaticResource PrimaryButtonStyle}" Click="RunSync_Click" IsEnabled="False" />
+                                <Button x:Name="CancelSyncButton" Content="Sync annuleren" Style="{StaticResource SecondaryButtonStyle}" Click="CancelSync_Click" Margin="8,0,0,0" IsEnabled="False" />
+                            </StackPanel>
+                            <TextBlock x:Name="SyncProgressText" Text="Klaar wanneer je verbinding klaar is." DockPanel.Dock="Right" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                        </DockPanel>
+                        <ProgressBar x:Name="SyncProgressBar" Height="6" Minimum="0" Maximum="1" Value="0" Margin="0,10,0,0" />
+                        <TextBlock x:Name="SyncDetailText" Text="" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock x:Name="SyncSummaryText" Text="" Foreground="{StaticResource BodyTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="4" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="14,10">
+            <StackPanel>
+                <TextBlock x:Name="SessionText" Text="Voer je gegevens in om te beginnen." Foreground="{StaticResource BodyTextBrush}" TextWrapping="Wrap" />
+                <Expander Header="Technische details" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0">
+                    <TextBlock x:Name="TechnicalDetailsText" Text="Geen technische details." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                </Expander>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

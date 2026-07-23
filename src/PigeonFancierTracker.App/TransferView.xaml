@@ -1,0 +1,112 @@
+<UserControl x:Class="PigeonFancierTracker.App.TransferView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        MinHeight="520"
+        MinWidth="980"
+        Background="#F4F7FB">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="White" Padding="20,14" BorderBrush="#D9E2EC" BorderThickness="0,0,0,1">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="Transfermarkt" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="Actieve en voltooide transfers van de laatste lokale momentopnames. Er wordt geen nieuw spelverzoek gedaan door deze pagina." Foreground="#52606D" FontSize="12" Margin="0,3,0,0" />
+                </StackPanel>
+                <TextBlock x:Name="TransferStatusText" DockPanel.Dock="Right" Text="Transfers laden…" Foreground="#52606D" VerticalAlignment="Center" HorizontalAlignment="Right" />
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Actieve transfers" Foreground="#1D3557" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock x:Name="ActiveTransferCountText" Text="Geen actieve transfers gevonden." Foreground="#52606D" Margin="0,5,0,14" />
+                        <DataGrid x:Name="ActiveTransferGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  HeadersVisibility="Column"
+                                  MinHeight="120"
+                                  MaxHeight="400"
+                                  GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.5*" />
+                                <DataGridTextColumn Header="Gesl" Binding="{Binding Sex}" Width="50" />
+                                <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age}" Width="70" />
+                                <DataGridTextColumn Header="Prijs" Binding="{Binding CurrentPrice}" Width="65" />
+                                <DataGridTextColumn Header="Verkoper" Binding="{Binding Seller}" Width="1*" />
+                                <DataGridTextColumn Header="Koper" Binding="{Binding Buyer}" Width="1*" />
+                                <DataGridTextColumn Header="Bied" Binding="{Binding BidCount}" Width="50" />
+                                <DataGridTextColumn Header="Resterende tijd" Binding="{Binding TimeRemaining}" Width="75" />
+                                <DataGridTextColumn Header="Sch. Waarde" Binding="{Binding EstimatedPriceDisplay}" Width="80" />
+                                <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="60" />
+                                <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Mid" Binding="{Binding MediumDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Vrm" Binding="{Binding FormDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Erv" Binding="{Binding ExperienceDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Con" Binding="{Binding StaminaDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Snh" Binding="{Binding SpeedDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Nav" Binding="{Binding NavigationDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Tec" Binding="{Binding TechniqueDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Aer" Binding="{Binding AerodynamicsDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Int" Binding="{Binding IntelligenceDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Lib" Binding="{Binding LibidoDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Nz" Binding="{Binding NightvisionDisplay}" Width="55" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="White" CornerRadius="10" Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="Voltooide transfers" Foreground="#1D3557" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock x:Name="CompletedTransferCountText" Text="Nog geen voltooide transfers gedetecteerd." Foreground="#52606D" Margin="0,5,0,14" />
+                        <DataGrid x:Name="CompletedTransferGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  HeadersVisibility="Column"
+                                  MinHeight="120"
+                                  MaxHeight="400"
+                                  GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.5*" />
+                                <DataGridTextColumn Header="Gesl" Binding="{Binding Sex}" Width="50" />
+                                <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age}" Width="70" />
+                                <DataGridTextColumn Header="Prijs" Binding="{Binding CurrentPrice}" Width="65" />
+                                <DataGridTextColumn Header="Verkoper" Binding="{Binding Seller}" Width="1*" />
+                                <DataGridTextColumn Header="Koper" Binding="{Binding Buyer}" Width="1*" />
+                                <DataGridTextColumn Header="Bied" Binding="{Binding BidCount}" Width="50" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding TimeRemaining}" Width="70" />
+                                <DataGridTextColumn Header="Sch. Waarde" Binding="{Binding EstimatedPriceDisplay}" Width="80" />
+                                <DataGridTextColumn Header="Δ Prijs" Binding="{Binding PriceDeltaDisplay}" Width="80" />
+                                <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="60" />
+                                <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Mid" Binding="{Binding MediumDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Vrm" Binding="{Binding FormDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Erv" Binding="{Binding ExperienceDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Con" Binding="{Binding StaminaDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Snh" Binding="{Binding SpeedDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Nav" Binding="{Binding NavigationDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Tec" Binding="{Binding TechniqueDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Aer" Binding="{Binding AerodynamicsDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Int" Binding="{Binding IntelligenceDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Lib" Binding="{Binding LibidoDisplay}" Width="55" />
+                                <DataGridTextColumn Header="Nz" Binding="{Binding NightvisionDisplay}" Width="55" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

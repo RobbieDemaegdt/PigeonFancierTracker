@@ -1,0 +1,44 @@
+## .NET build output
+[Bb]in/
+[Oo]bj/
+
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+## Rider
+.idea/
+
+## NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## SQLite databases (local data)
+*.db
+*.db-shm
+*.db-wal
+
+## Python virtual environment (graphify tooling)
+.venv/
+
+## Graphify analysis output
+graphify-out/
+
+## Development planning documents
+standalone-dotnet-implementation-plan.md
+chrome-extension-implementation-plan.md
+firefox-extension-implementation-plan.md
+dashboard-connection-ux-plan.md
+pigeon-fancier-site-map.md
+pigeon-price-estimation-plan.md
+
+## OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

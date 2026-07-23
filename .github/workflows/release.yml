@@ -1,0 +1,54 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore PigeonFancierTracker.sln
+
+      - name: Run tests
+        run: dotnet test PigeonFancierTracker.sln --configuration Release --no-restore
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish self-contained app
+        run: >
+          dotnet publish src/PigeonFancierTracker.App/PigeonFancierTracker.App.csproj
+          --configuration Release
+          --no-restore
+          /p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Create release zip
+        shell: pwsh
+        run: |
+          $publishDir = "src/PigeonFancierTracker.App/bin/Release/net10.0-windows/win-x64/publish"
+          $zipName = "PigeonFancierTracker-${{ steps.version.outputs.VERSION }}-win-x64.zip"
+          Get-ChildItem "$publishDir" -Exclude *.pdb | Compress-Archive -DestinationPath $zipName
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PigeonFancierTracker-${{ steps.version.outputs.VERSION }}-win-x64.zip
+          generate_release_notes: true
+          name: Pigeon Fancier Tracker v${{ steps.version.outputs.VERSION }}

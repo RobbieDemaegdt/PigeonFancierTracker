@@ -1,0 +1,63 @@
+<UserControl x:Class="PigeonFancierTracker.App.DataView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            <TextBlock Text="Gegevens" Foreground="{StaticResource HeadingTextBrush}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+            <!-- Export Card -->
+            <Border Style="{StaticResource CardBorderStyle}" Padding="20" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Exporteren" Foreground="{StaticResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Text="Exporteer al je lokale gegevens (momentopnamen, syncruns en transfers) naar een .pfbackup-bestand dat je kunt overbrengen naar een ander apparaat."
+                               Foreground="{StaticResource BodyTextBrush}" TextWrapping="Wrap" Margin="0,8,0,14" />
+                    <DockPanel>
+                        <Button x:Name="ExportButton" DockPanel.Dock="Left" Content="Exporteren..." Style="{StaticResource PrimaryButtonStyle}" Click="ExportButton_Click" />
+                        <Button x:Name="CancelExportButton" DockPanel.Dock="Left" Content="Annuleren" Style="{StaticResource SecondaryButtonStyle}" Click="CancelExport_Click" Visibility="Collapsed" Margin="10,0,0,0" />
+                        <TextBlock x:Name="ExportStatusText" DockPanel.Dock="Right" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    </DockPanel>
+                    <ProgressBar x:Name="ExportProgress" Height="6" Minimum="0" Maximum="1" Value="0" Margin="0,10,0,0" Visibility="Collapsed" />
+                    <TextBlock x:Name="ExportDetailText" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Import Card -->
+            <Border Style="{StaticResource CardBorderStyle}" Padding="20" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Importeren" Foreground="{StaticResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Text="Importeer gegevens uit een .pfbackup-bestand. Bestaande records worden overgeslagen — alleen nieuwe gegevens worden toegevoegd."
+                               Foreground="{StaticResource BodyTextBrush}" TextWrapping="Wrap" Margin="0,8,0,14" />
+                    <DockPanel>
+                        <Button x:Name="ImportButton" DockPanel.Dock="Left" Content="Importeren..." Style="{StaticResource PrimaryButtonStyle}" Click="ImportButton_Click" />
+                        <Button x:Name="CancelImportButton" DockPanel.Dock="Left" Content="Annuleren" Style="{StaticResource SecondaryButtonStyle}" Click="CancelImport_Click" Visibility="Collapsed" Margin="10,0,0,0" />
+                        <TextBlock x:Name="ImportStatusText" DockPanel.Dock="Right" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    </DockPanel>
+                    <ProgressBar x:Name="ImportProgress" Height="6" Minimum="0" Maximum="1" Value="0" Margin="0,10,0,0" Visibility="Collapsed" />
+                    <TextBlock x:Name="ImportDetailText" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Info Card -->
+            <Border Style="{StaticResource CardBorderStyle}" Padding="20" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Over het back-upbestand" Foreground="{StaticResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    <TextBlock Foreground="{StaticResource BodyTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="Het .pfbackup-bestand is een ZIP-archief met JSON-bestanden. Het bevat geen inloggegevens of wachtwoorden — alleen duivengegevens, syncruns en transfers. Je kunt het bestand veilig kopiëren via USB, e-mail of cloudopslag." />
+                </StackPanel>
+            </Border>
+
+            <!-- Reset Card -->
+            <Border Style="{StaticResource CardBorderStyle}" Padding="20" BorderBrush="#C0392B">
+                <StackPanel>
+                    <TextBlock Text="Alle gegevens wissen" Foreground="#C0392B" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Text="Verwijder alle lokale gegevens permanent: momentopnamen, syncruns, transfers en opgeslagen inloggegevens. Dit kan niet ongedaan worden gemaakt."
+                               Foreground="{StaticResource BodyTextBrush}" TextWrapping="Wrap" Margin="0,8,0,14" />
+                    <DockPanel>
+                        <Button x:Name="ResetButton" DockPanel.Dock="Left" Content="Alles wissen..." Click="ResetButton_Click" Padding="16,8" Background="#C0392B" Foreground="White" BorderThickness="0" FontWeight="SemiBold" />
+                        <TextBlock x:Name="ResetStatusText" DockPanel.Dock="Right" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
