@@ -1,0 +1,25 @@
+{
+  "id": 216,
+  "ageType": "elder",
+  "start": "2026-07-28T20:00:00",
+  "location": {
+    "id": 277,
+    "name": "g\u00F6teborg",
+    "lat": 57.7089,
+    "lng": 11.9746
+  },
+  "public": false,
+  "department": 0,
+  "season": 1,
+  "seasonStart": "2026-07-27T00:00:00",
+  "entryPrice": 0,
+  "type": "training",
+  "payoutType": "none",
+  "status": "ended",
+  "progress": 100,
+  "canSubscribe": false,
+  "fancierId": 7,
+  "distance": 251,
+  "subscribers": 1,
+  "invitations": []
+}

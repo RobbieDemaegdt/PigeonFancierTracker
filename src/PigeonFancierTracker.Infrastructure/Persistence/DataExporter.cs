@@ -26,16 +26,24 @@ public sealed class DataExporter(IDbContextFactory<AppDbContext> dbContextFactor
         progress?.Report(new DataPortProgress("Transfers laden...", 0.55));
         var transfers = await db.CompletedTransfers.AsNoTracking().ToListAsync(cancellationToken);
 
+        progress?.Report(new DataPortProgress("Vluchten laden...", 0.60));
+        var flights = await db.Flights.AsNoTracking().ToListAsync(cancellationToken);
+
+        progress?.Report(new DataPortProgress("Vluchtresultaten laden...", 0.65));
+        var flightResults = await db.FlightResults.AsNoTracking().ToListAsync(cancellationToken);
+
         progress?.Report(new DataPortProgress("Archief schrijven...", 0.70));
 
         var manifest = new BackupManifest(
-            FormatVersion: 1,
+            FormatVersion: 2,
             ExportedAtUtc: DateTimeOffset.UtcNow,
             AppVersion: Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown",
             SnapshotCount: snapshots.Count,
             SyncRunCount: syncRuns.Count,
             SyncRunItemCount: syncRunItems.Count,
-            TransferCount: transfers.Count);
+            TransferCount: transfers.Count,
+            FlightCount: flights.Count,
+            FlightResultCount: flightResults.Count);
 
         using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
         using var archive = new ZipArchive(fileStream, ZipArchiveMode.Create);
@@ -45,11 +53,13 @@ public sealed class DataExporter(IDbContextFactory<AppDbContext> dbContextFactor
         await WriteJsonEntryAsync(archive, "sync_runs.json", syncRuns, cancellationToken);
         await WriteJsonEntryAsync(archive, "sync_run_items.json", syncRunItems, cancellationToken);
         await WriteJsonEntryAsync(archive, "completed_transfers.json", transfers, cancellationToken);
+        await WriteJsonEntryAsync(archive, "flights.json", flights, cancellationToken);
+        await WriteJsonEntryAsync(archive, "flight_results.json", flightResults, cancellationToken);
 
         progress?.Report(new DataPortProgress("Export voltooid", 1.0));
 
-        var total = snapshots.Count + syncRuns.Count + syncRunItems.Count + transfers.Count;
-        return new DataPortResult(true, $"{total:N0} records geëxporteerd.", snapshots.Count, syncRuns.Count, syncRunItems.Count, transfers.Count);
+        var total = snapshots.Count + syncRuns.Count + syncRunItems.Count + transfers.Count + flights.Count + flightResults.Count;
+        return new DataPortResult(true, $"{total:N0} records geëxporteerd.", snapshots.Count, syncRuns.Count, syncRunItems.Count, transfers.Count, flights.Count, flightResults.Count);
     }
 
     private static async Task WriteJsonEntryAsync<T>(ZipArchive archive, string entryName, T data, CancellationToken cancellationToken)

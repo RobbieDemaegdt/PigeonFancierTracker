@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "number": 1,
+    "departments": 9,
+    "start": "2026-07-27T00:00:00",
+    "finalized": false,
+    "week": 1,
+    "active": true
+  }
+]

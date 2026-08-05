@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PigeonFancierTracker.Core.Contracts;
+using PigeonFancierTracker.Infrastructure.AutoBid;
 using PigeonFancierTracker.Infrastructure.Http;
 using PigeonFancierTracker.Infrastructure.Persistence;
 using PigeonFancierTracker.Infrastructure.PigeonFancierApi;
@@ -29,13 +30,21 @@ public static class DependencyInjection
         services.AddSingleton<HttpClientReadTransport>();
         services.AddSingleton<AuthenticatedReadTransportProxy>();
         services.AddSingleton<IAuthenticatedReadTransport>(sp => sp.GetRequiredService<AuthenticatedReadTransportProxy>());
+        services.AddSingleton<IAuthenticatedWriteTransport, HttpClientWriteTransport>();
+        services.AddSingleton<IAutoBidService, AutoBidService>();
         services.AddSingleton<ILoginService, LoginService>();
         services.AddSingleton<ICredentialStore>(_ => new CredentialStore(appDataDirectory));
+        services.AddSingleton<ISettingsService>(_ => new SettingsService(appDataDirectory));
+        services.AddSingleton<StartupManager>();
         services.AddSingleton<PigeonFancierApiClient>();
         services.AddSingleton<ISyncCoordinator, SyncCoordinator>();
+        services.AddSingleton<FlightResultIngester>();
+        services.AddSingleton<IFlightResultsReader, FlightResultsReader>();
         services.AddSingleton<IDataExporter, DataExporter>();
         services.AddSingleton<IDataImporter, DataImporter>();
         services.AddSingleton<IDataResetter, DataResetter>();
+        services.AddSingleton<PedigreeDataFetcher>();
+        services.AddSingleton<IBreedingDataReader, BreedingDataReader>();
         return services;
     }
 }

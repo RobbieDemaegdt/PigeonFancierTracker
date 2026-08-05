@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using PigeonFancierTracker.Core.Analytics;
 using PigeonFancierTracker.Core.Contracts;
 
 namespace PigeonFancierTracker.Infrastructure.Persistence;
@@ -80,7 +81,27 @@ public sealed class PigeonHistoryReader(IDbContextFactory<AppDbContext> contextF
         var deduplicated = DeduplicatePoints(rawPoints);
         var points = AddDeltaIndicators(deduplicated);
 
-        return new PigeonHistoryData(pigeonRows, selected, points);
+        AgeCurveResult? ageCurve = null;
+        DiseaseImpactResult? diseaseImpact = null;
+
+        if (selected is not null)
+        {
+            var ageSkillPoints = observations
+                .SelectMany(x => x.Pigeons
+                    .Where(p => p.Id == selected.SourceId && p.TotalMonths.HasValue && p.Skills is not null)
+                    .Select(p => (AgeMonths: p.TotalMonths!.Value, TotalSkill: ComputeTotal(p.Skills) ?? 0, BirthDate: p.BirthDateTime)))
+                .ToList();
+
+            var birthDate = ageSkillPoints.FirstOrDefault(x => x.BirthDate.HasValue).BirthDate;
+            ageCurve = await BuildAgeCurveAsync(db, selected.SourceId, selectedFancierId, ageSkillPoints, birthDate, cancellationToken);
+
+            var diseaseSnapshots = rawPoints
+                .Select(p => new DiseaseSnapshot(p.ObservedAtUtc, p.Disease, p.TotalSkill ?? 0))
+                .ToList();
+            diseaseImpact = DiseaseImpactCalculator.Calculate(diseaseSnapshots);
+        }
+
+        return new PigeonHistoryData(pigeonRows, selected, points, ageCurve, diseaseImpact);
     }
 
     private static PigeonHistoryPoint[] DeduplicatePoints(PigeonHistoryPoint[] points)
@@ -234,6 +255,56 @@ public sealed class PigeonHistoryReader(IDbContextFactory<AppDbContext> contextF
             pigeon.Flying,
             pigeon.Disease,
             snapshot.Id);
+
+    private static async Task<AgeCurveResult> BuildAgeCurveAsync(
+        AppDbContext db,
+        int pigeonId,
+        int fancierId,
+        IReadOnlyList<(int AgeMonths, decimal TotalSkill, DateTimeOffset? BirthDate)> ageSkillPoints,
+        DateTimeOffset? birthDate,
+        CancellationToken ct)
+    {
+        var racePercentileByMonth = new Dictionary<int, List<double>>();
+
+        if (birthDate.HasValue)
+        {
+            var raceResults = await (
+                from r in db.FlightResults.AsNoTracking()
+                join f in db.Flights.AsNoTracking() on r.FlightId equals f.Id
+                where r.PigeonId == pigeonId && r.FancierId == fancierId
+                select new { f.Start, r.Position, r.TotalParticipants }
+            ).ToListAsync(ct);
+
+            foreach (var race in raceResults)
+            {
+                var ageAtRace = (int)((race.Start - birthDate.Value.DateTime).TotalDays / 30.44);
+                if (ageAtRace < 0) continue;
+
+                var percentile = race.TotalParticipants > 0
+                    ? (double)race.Position / race.TotalParticipants * 100
+                    : 0;
+
+                if (!racePercentileByMonth.TryGetValue(ageAtRace, out var list))
+                {
+                    list = [];
+                    racePercentileByMonth[ageAtRace] = list;
+                }
+                list.Add(percentile);
+            }
+        }
+
+        var ageCurvePoints = ageSkillPoints
+            .Select(p =>
+            {
+                double? avgPercentile = racePercentileByMonth.TryGetValue(p.AgeMonths, out var pcts) && pcts.Count > 0
+                    ? pcts.Average()
+                    : null;
+                return new AgeCurvePoint(p.AgeMonths, p.TotalSkill, avgPercentile);
+            })
+            .ToList();
+
+        return AgeCurveCalculator.Calculate(ageCurvePoints);
+    }
 
     private static string? FormatAge(PigeonDto pigeon) =>
         pigeon.Years.HasValue && pigeon.Months.HasValue

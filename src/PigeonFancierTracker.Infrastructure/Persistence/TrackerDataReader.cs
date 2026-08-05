@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using PigeonFancierTracker.Core.Analytics;
 using PigeonFancierTracker.Core.Contracts;
 
 namespace PigeonFancierTracker.Infrastructure.Persistence;
@@ -60,10 +61,11 @@ public sealed class TrackerDataReader(IDbContextFactory<AppDbContext> contextFac
             .ToDictionary(x => x.Id!.Value);
         var nameTranslations = PigeonNameResolver.ReadTranslations(relevantSnapshots);
         var breedingPigeonIds = ExtractBreedingPigeonIds(relevantSnapshots);
+        var earningsByPigeon = await BuildEarningsMapAsync(db, selectedFancierId, cancellationToken);
 
         var pigeonRows = currentPigeons
             .OrderByDescending(p => p.TotalMonths ?? 0)
-            .Select(pigeon => CreatePigeonRow(pigeon, previousById, nameTranslations, breedingPigeonIds))
+            .Select(pigeon => CreatePigeonRow(pigeon, previousById, nameTranslations, breedingPigeonIds, earningsByPigeon))
             .ToArray();
         var skillValues = pigeonRows
             .Where(x => x.TotalSkill.HasValue)
@@ -97,7 +99,8 @@ public sealed class TrackerDataReader(IDbContextFactory<AppDbContext> contextFac
         PigeonDto pigeon,
         IReadOnlyDictionary<int, PigeonDto> previousById,
         PigeonNameTranslations nameTranslations,
-        HashSet<int> breedingPigeonIds)
+        HashSet<int> breedingPigeonIds,
+        IReadOnlyDictionary<int, EarningsResult> earningsByPigeon)
     {
         PigeonSkillsDto? prevSkills = null;
         decimal? skillChange = null;
@@ -131,6 +134,10 @@ public sealed class TrackerDataReader(IDbContextFactory<AppDbContext> contextFac
         };
 
         var breedingMark = pigeon.Id is int pigeonId && breedingPigeonIds.Contains(pigeonId) ? "♥" : null;
+
+        EarningsResult? earnings = null;
+        if (pigeon.Id is int earningsId && earningsByPigeon.TryGetValue(earningsId, out var e))
+            earnings = e;
 
         var shortStat = FormatDistanceStat(
             ToOneBased(skills?.Speed), ToOneBased(skills?.Aerodynamics), ToOneBased(skills?.Intelligence),
@@ -168,7 +175,11 @@ public sealed class TrackerDataReader(IDbContextFactory<AppDbContext> contextFac
             breedingMark,
             shortStat,
             mediumStat,
-            longStat);
+            longStat,
+            earnings?.TotalPoints,
+            earnings?.TotalEntryFees,
+            earnings?.RaceCount,
+            earnings is not null ? EarningsCalculator.FormatDisplay(earnings) : null);
     }
 
     private static string? FormatSkillDelta(decimal? current, decimal? previous)
@@ -253,6 +264,24 @@ public sealed class TrackerDataReader(IDbContextFactory<AppDbContext> contextFac
         }
 
         return ids;
+    }
+
+    private static async Task<Dictionary<int, EarningsResult>> BuildEarningsMapAsync(
+        AppDbContext db, int fancierId, CancellationToken ct)
+    {
+        var raceData = await (
+            from r in db.FlightResults.AsNoTracking()
+            join f in db.Flights.AsNoTracking() on r.FlightId equals f.Id
+            where r.FancierId == fancierId
+            select new { r.PigeonId, r.Points, f.EntryPrice }
+        ).ToListAsync(ct);
+
+        return raceData
+            .GroupBy(x => x.PigeonId)
+            .ToDictionary(
+                g => g.Key,
+                g => EarningsCalculator.Calculate(
+                    g.Select(x => new EarningsInput(x.Points, x.EntryPrice)).ToList()));
     }
 
     private static decimal? ComputeTotal(PigeonSkillsDto? skills) => skills?.Total + 6;

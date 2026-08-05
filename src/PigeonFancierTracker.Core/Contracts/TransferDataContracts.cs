@@ -13,6 +13,7 @@ public sealed record TransferListItem(
     string PigeonName,
     string? Sex,
     string? Age,
+    string? Breed,
     decimal? StartPrice,
     decimal? CurrentPrice,
     string? Seller,
@@ -39,17 +40,76 @@ public sealed record TransferListItem(
     TransferStatus Status,
     decimal? SoldPrice,
     string? SoldTo,
-    decimal? EstimatedPrice,
-    string? EstimatedPriceDisplay,
-    string? PriceDeltaDisplay);
+    IReadOnlyList<WindowPriceRow>? PriceEstimates = null,
+    IReadOnlyList<WindowPercentileRow>? MarketPercentiles = null,
+    IReadOnlyList<WindowPercentileRow>? FlockPercentiles = null)
+{
+    public string? BestEstimateDisplay
+    {
+        get
+        {
+            var best = PriceEstimates?
+                .Where(r => r.EstimatedPrice.HasValue)
+                .OrderByDescending(r => r.ComparableCount)
+                .FirstOrDefault();
+            if (best is null) return null;
+            return $"€{best.EstimatedPrice:N0} ({best.WindowLabel})";
+        }
+    }
+
+    public string? PriceDeltaDisplay
+    {
+        get
+        {
+            if (Status != TransferStatus.Sold || !SoldPrice.HasValue) return null;
+            var best = PriceEstimates?
+                .Where(r => r.EstimatedPrice.HasValue)
+                .OrderByDescending(r => r.ComparableCount)
+                .FirstOrDefault();
+            if (best?.EstimatedPrice is not decimal estimated) return null;
+            var delta = SoldPrice.Value - estimated;
+            return delta switch
+            {
+                > 0 => $"+€{delta:N0} ↑",
+                < 0 => $"−€{Math.Abs(delta):N0} ↓",
+                _ => "€0",
+            };
+        }
+    }
+}
 
 public sealed record TransferPageData(
     IReadOnlyList<TransferListItem> ActiveTransfers,
-    IReadOnlyList<TransferListItem> CompletedTransfers);
+    IReadOnlyList<TransferListItem> CompletedTransfers,
+    MarketTrendResult? MarketTrend = null,
+    AuctionTimingResult? AuctionTiming = null);
 
 public interface ITransferDataReader
 {
     Task<TransferPageData> GetTransferDataAsync(
         int selectedFancierId,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> RecheckTransferStatusAsync(
+        int selectedFancierId,
+        int transferId,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateTransferStatusAsync(
+        int selectedFancierId,
+        int transferId,
+        TransferStatus newStatus,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateTransferBuyerAsync(
+        int selectedFancierId,
+        int transferId,
+        string? buyer,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateTransferSoldPriceAsync(
+        int selectedFancierId,
+        int transferId,
+        decimal? soldPrice,
         CancellationToken cancellationToken = default);
 }

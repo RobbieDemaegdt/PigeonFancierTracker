@@ -24,10 +24,10 @@ public sealed class SyncCoordinatorTests
         var result = await coordinator.SyncAsync(SyncProfile.Quick);
 
         result.Status.Should().Be("Succeeded");
-        result.EndpointResults.Should().HaveCount(12);
+        result.EndpointResults.Should().HaveCount(13);
         await using var db = database.Factory.CreateDbContext();
-        db.RawApiSnapshots.Should().HaveCount(12);
-        db.SyncRunItems.Should().HaveCount(12);
+        db.RawApiSnapshots.Should().HaveCount(13);
+        db.SyncRunItems.Should().HaveCount(13);
         db.SyncRuns.Single().Status.Should().Be("Succeeded");
         db.RawApiSnapshots.All(x => x.HttpMethod == "GET").Should().BeTrue();
     }

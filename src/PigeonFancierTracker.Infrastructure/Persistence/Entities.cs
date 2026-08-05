@@ -57,9 +57,62 @@ public sealed class CompletedTransferEntity
     public string? PigeonName { get; set; }
     public string? Sex { get; set; }
     public string? Age { get; set; }
+    public string? Breed { get; set; }
     public int BidCount { get; set; }
     public DateTimeOffset? TransferStart { get; set; }
     public DateTimeOffset? TransferEnd { get; set; }
     public DateTimeOffset DetectedAtUtc { get; set; }
     public string? SkillsJson { get; set; }
+}
+
+public sealed class FlightEntity
+{
+    public int Id { get; set; }
+    public int Season { get; set; }
+    public int Department { get; set; }
+    public required string Type { get; set; }
+    public required string PayoutType { get; set; }
+    public required string Status { get; set; }
+    public DateTime Start { get; set; }
+    public string? LocationName { get; set; }
+    public double? LocationLat { get; set; }
+    public double? LocationLng { get; set; }
+    public int DistanceKm { get; set; }
+    public required string DistanceCategory { get; set; }
+    public required string AgeType { get; set; }
+    public decimal EntryPrice { get; set; }
+    public int Subscribers { get; set; }
+    public DateTimeOffset DetectedAtUtc { get; set; }
+    public DateTimeOffset? ResultsFetchedAtUtc { get; set; }
+}
+
+public sealed class OffspringCacheEntity
+{
+    public long Id { get; set; }
+    public int PigeonId { get; set; }
+    public required string OffspringJson { get; set; }
+    public DateTimeOffset FetchedAtUtc { get; set; }
+}
+
+public sealed class PedigreeCacheEntity
+{
+    public long Id { get; set; }
+    public int PigeonId { get; set; }
+    public required string PedigreeJson { get; set; }
+    public DateTimeOffset FetchedAtUtc { get; set; }
+}
+
+public sealed class FlightResultEntity
+{
+    public long Id { get; set; }
+    public int FlightId { get; set; }
+    public int PigeonId { get; set; }
+    public int FancierId { get; set; }
+    public int Position { get; set; }
+    public int TotalParticipants { get; set; }
+    public int Points { get; set; }
+    public decimal AverageSpeed { get; set; }
+    public int PigeonDistance { get; set; }
+    public string? PigeonName { get; set; }
+    public DateTimeOffset DetectedAtUtc { get; set; }
 }

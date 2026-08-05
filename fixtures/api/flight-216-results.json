@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "id": 1058,
+      "position": 1,
+      "points": 0,
+      "averageSpeed": 1061.61,
+      "ageType": 4,
+      "agePosition": 1,
+      "currentSpeed": 0,
+      "distance": 871,
+      "remainingDistance": 0,
+      "direction": 100,
+      "progress": 100,
+      "pigeonId": 59,
+      "firstNameId": 407,
+      "lastNameId": 879,
+      "fancierId": 7,
+      "fancier": "melch"
+    }
+  ],
+  "count": 1,
+  "page": 1
+}

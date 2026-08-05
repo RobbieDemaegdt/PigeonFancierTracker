@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         MinHeight="520"
         MinWidth="980"
-        Background="#F4F7FB">
+        Background="{DynamicResource PageBackgroundBrush}">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -11,21 +11,21 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="White" Padding="20,14" BorderBrush="#D9E2EC" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource CardBackgroundBrush}" Padding="20,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
             <StackPanel>
-                <TextBlock Text="Duivengeschiedenis" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" />
-                <TextBlock Text="Alle geslaagde lokale momentopnames worden gecombineerd in de tijdlijn van elke duif. Er wordt geen nieuw spelverzoek gedaan door deze pagina." Foreground="#52606D" FontSize="12" Margin="0,3,0,0" />
+                <TextBlock Text="Duivengeschiedenis" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Text="Alle geslaagde lokale momentopnames worden gecombineerd in de tijdlijn van elke duif. Er wordt geen nieuw spelverzoek gedaan door deze pagina." Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,3,0,0" />
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="1" Background="White" Padding="20,14" BorderBrush="#D9E2EC" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" Padding="20,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="280" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Duif" Foreground="#52606D" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <TextBlock Grid.Column="0" Text="Duif" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,12,0" />
                 <ComboBox x:Name="PigeonSelector"
                           Grid.Column="1"
                           DisplayMemberPath="DisplayName"
@@ -33,75 +33,139 @@
                           SelectionChanged="PigeonSelector_SelectionChanged"
                           MinWidth="240"
                           Padding="8,5" />
-                <TextBlock x:Name="HistoryStatusText" Grid.Column="2" Text="Lokale geschiedenis laden…" Foreground="#52606D" VerticalAlignment="Center" Margin="18,0,0,0" />
+                <TextBlock x:Name="HistoryStatusText" Grid.Column="2" Text="Lokale geschiedenis laden…" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" Margin="18,0,0,0" />
             </Grid>
         </Border>
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="20">
-                <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,14">
+                <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="10" Padding="20" Margin="0,0,0,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock x:Name="PigeonTitleText" Text="Selecteer een duif" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" />
-                        <TextBlock x:Name="PigeonSummaryText" Foreground="#52606D" Margin="0,5,0,0" />
+                        <TextBlock x:Name="PigeonTitleText" Text="Selecteer een duif" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" />
+                        <TextBlock x:Name="PigeonSummaryText" Foreground="{DynamicResource MutedTextBrush}" Margin="0,5,0,0" />
                         <UniformGrid Columns="5" Margin="0,18,0,0">
                             <StackPanel>
-                                <TextBlock Text="Laatste totale vaardigheid" Foreground="#52606D" />
-                                <TextBlock x:Name="LatestTotalSkillText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                                <TextBlock Text="Laatste totale vaardigheid" Foreground="{DynamicResource MutedTextBrush}" />
+                                <TextBlock x:Name="LatestTotalSkillText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="Verandering sinds eerste" Foreground="#52606D" />
-                                <TextBlock x:Name="TotalSkillChangeText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                                <TextBlock Text="Verandering sinds eerste" Foreground="{DynamicResource MutedTextBrush}" />
+                                <TextBlock x:Name="TotalSkillChangeText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="Laatste premie/waarde" Foreground="#52606D" />
-                                <TextBlock x:Name="LatestPremiumText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                                <TextBlock Text="Laatste premie/waarde" Foreground="{DynamicResource MutedTextBrush}" />
+                                <TextBlock x:Name="LatestPremiumText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="Waarnemingen" Foreground="#52606D" />
-                                <TextBlock x:Name="ObservationCountText" Text="—" Foreground="#1D3557" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                                <TextBlock Text="Waarnemingen" Foreground="{DynamicResource MutedTextBrush}" />
+                                <TextBlock x:Name="ObservationCountText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="Laatst waargenomen" Foreground="#52606D" />
-                                <TextBlock x:Name="LatestObservedText" Text="—" Foreground="#1D3557" FontSize="14" FontWeight="SemiBold" Margin="0,7,0,0" />
+                                <TextBlock Text="Laatst waargenomen" Foreground="{DynamicResource MutedTextBrush}" />
+                                <TextBlock x:Name="LatestObservedText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,7,0,0" />
                             </StackPanel>
                         </UniformGrid>
                     </StackPanel>
                 </Border>
 
-                <Border Background="White" CornerRadius="10" Padding="20">
+                <Expander Header="Vaardigheidgeschiedenis" Style="{StaticResource AppExpanderStyle}" IsExpanded="True" Margin="0,0,0,14">
                     <StackPanel>
-                        <TextBlock Text="Vaardigheidgeschiedenis" Foreground="#1D3557" FontSize="18" FontWeight="SemiBold" />
-                        <TextBlock Text="Elke rij vertegenwoordigt een verandering in statistieken. Dubbele momentopnames zonder wijzigingen worden verborgen." Foreground="#52606D" Margin="0,5,0,14" />
+                        <TextBlock Text="Elke rij vertegenwoordigt een verandering in statistieken. Dubbele momentopnames zonder wijzigingen worden verborgen." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,14" />
                         <DataGrid x:Name="HistoryGrid"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  HeadersVisibility="Column"
-                                  MinHeight="220"
-                                  MaxHeight="520"
-                                  GridLinesVisibility="Horizontal">
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  HeadersVisibility="Column" MinHeight="220" MaxHeight="520" GridLinesVisibility="Horizontal">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Waargenomen" Binding="{Binding ObservedAtUtc, StringFormat={}{0:g}}" Width="145" />
                                 <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="75" />
                                 <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="65" />
                                 <DataGridTextColumn Header="Mid" Binding="{Binding MediumDisplay}" Width="65" />
                                 <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Vrm" Binding="{Binding FormDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Erv" Binding="{Binding ExperienceDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Con" Binding="{Binding StaminaDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Snh" Binding="{Binding SpeedDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Nav" Binding="{Binding NavigationDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Tec" Binding="{Binding TechniqueDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Aer" Binding="{Binding AerodynamicsDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Int" Binding="{Binding IntelligenceDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Lib" Binding="{Binding LibidoDisplay}" Width="65" />
-                                <DataGridTextColumn Header="Nz" Binding="{Binding NightvisionDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Vorm" Binding="{Binding FormDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Ervaring" Binding="{Binding ExperienceDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Conditie" Binding="{Binding StaminaDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Snelheid" Binding="{Binding SpeedDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Navigatie" Binding="{Binding NavigationDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Techniek" Binding="{Binding TechniqueDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Aerodyn." Binding="{Binding AerodynamicsDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Intell." Binding="{Binding IntelligenceDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Libido" Binding="{Binding LibidoDisplay}" Width="65" />
+                                <DataGridTextColumn Header="Nachtzicht" Binding="{Binding NightvisionDisplay}" Width="65" />
                                 <DataGridTextColumn Header="Premie" Binding="{Binding Premium, StringFormat={}{0:C2}}" Width="90" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </StackPanel>
-                </Border>
+                </Expander>
+
+                <Expander x:Name="AgeCurveExpander" Header="Leeftijdsanalyse" Style="{StaticResource AppExpanderStyle}" IsExpanded="False" Margin="0,0,0,14" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="AgeCurveStatusText" Text="Geen leeftijdsgegevens beschikbaar." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,10" />
+                        <UniformGrid x:Name="AgeCurveSummary" Columns="4" Margin="0,0,0,10" Visibility="Collapsed">
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Piek vaardigheidsleeftijd" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="PeakSkillAgeText" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Piek prestatieleeftijd" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="PeakPerformanceAgeText" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Piek totale vaardigheid" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="PeakTotalSkillText" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Fase" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="PhaseDisplayText" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </UniformGrid>
+                        <DataGrid x:Name="AgeBucketGrid"
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  HeadersVisibility="Column" MaxHeight="250" GridLinesVisibility="Horizontal"
+                                  Visibility="Collapsed">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Leeftijd (m)" Binding="{Binding AgeMonths}" Width="90" />
+                                <DataGridTextColumn Header="Gem. vaardigheid" Binding="{Binding AvgTotalSkill, StringFormat={}{0:0.0}}" Width="120" />
+                                <DataGridTextColumn Header="Gem. percentiel" Binding="{Binding AvgPercentile, StringFormat={}{0:0.0}%}" Width="110" />
+                                <DataGridTextColumn Header="Waarnemingen" Binding="{Binding ObservationCount}" Width="100" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Expander>
+
+                <Expander x:Name="DiseaseImpactExpander" Header="Ziekte-impact" Style="{StaticResource AppExpanderStyle}" IsExpanded="False" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="DiseaseImpactStatusText" Text="Geen ziekte-episodes gedetecteerd." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,10" />
+                        <UniformGrid x:Name="DiseaseImpactSummary" Columns="3" Margin="0,0,0,10" Visibility="Collapsed">
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Totaal episodes" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="TotalEpisodesText" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Gem. vaardigheidsverlies" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="AvgSkillLossText" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Gem. herstel %" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="AvgRecoveryText" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </UniformGrid>
+                        <DataGrid x:Name="DiseaseEpisodesGrid"
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  HeadersVisibility="Column" MaxHeight="250" GridLinesVisibility="Horizontal"
+                                  Visibility="Collapsed">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Ziekte" Binding="{Binding DiseaseName}" Width="120" />
+                                <DataGridTextColumn Header="Gestart" Binding="{Binding StartedAt, StringFormat={}{0:dd-MM-yyyy}}" Width="100" />
+                                <DataGridTextColumn Header="Beëindigd" Binding="{Binding EndedAt, StringFormat={}{0:dd-MM-yyyy}}" Width="100" />
+                                <DataGridTextColumn Header="Snapshots" Binding="{Binding DurationSnapshots}" Width="75" />
+                                <DataGridTextColumn Header="Vaard. voor" Binding="{Binding SkillBefore, StringFormat={}{0:0.0}}" Width="85" />
+                                <DataGridTextColumn Header="Vaard. laagste" Binding="{Binding SkillWorst, StringFormat={}{0:0.0}}" Width="100" />
+                                <DataGridTextColumn Header="Vaard. na" Binding="{Binding SkillAfter, StringFormat={}{0:0.0}}" Width="75" />
+                                <DataGridTextColumn Header="Verlies" Binding="{Binding SkillLoss, StringFormat={}{0:0.0}}" Width="60" />
+                                <DataGridTextColumn Header="Netto impact" Binding="{Binding NetImpact, StringFormat={}{0:+0.0;-0.0}}" Width="90" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Expander>
             </StackPanel>
         </ScrollViewer>
     </Grid>

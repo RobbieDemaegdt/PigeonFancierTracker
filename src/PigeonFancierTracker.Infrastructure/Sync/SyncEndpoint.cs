@@ -27,6 +27,7 @@ public static class SyncEndpointCatalog
             new("/api/fancier/items"),
             new("/api/fancier/reports"),
             new("/api/transfer", new Dictionary<string, string?> { ["processed"] = "false" }),
+            new("/api/transfer", new Dictionary<string, string?> { ["processed"] = "true" }),
         };
 
         if (profile == SyncProfile.Quick)
@@ -37,7 +38,6 @@ public static class SyncEndpointCatalog
         quick.AddRange(
         [
             new("/api/weather"),
-            new("/api/transfer", new Dictionary<string, string?> { ["processed"] = "true" }),
             new("/api/transfer", new Dictionary<string, string?>
             {
                 ["processed"] = "false",

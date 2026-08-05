@@ -1,0 +1,71 @@
+<UserControl x:Class="PigeonFancierTracker.App.FlightResultsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+            <TextBlock x:Name="FlightStatusText" Text="Vluchten laden..." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,12" />
+
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Afstandsprofiel per duif" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Toont per duif hoeveel wedstrijden ze vlogen per afstandscategorie en hun gemiddelde prestatie." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <DataGrid x:Name="ProfileGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="100" MaxHeight="400" GridLinesVisibility="Horizontal" SelectionChanged="ProfileGrid_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.5*" />
+                            <DataGridTextColumn Header="Ras" Binding="{Binding Breed}" Width="80" />
+                            <DataGridTextColumn Header="Beste ★" Binding="{Binding BestCategoryDisplay}" Width="80" />
+                            <DataGridTextColumn Header="Consist." Binding="{Binding ConsistencyDisplay}" Width="110" />
+                            <DataGridTextColumn Header="Kort #" Binding="{Binding ShortRaces}" Width="55" />
+                            <DataGridTextColumn Header="Kort Gem%" Binding="{Binding ShortAvgPercentile, StringFormat={}{0:0.0}}" Width="75" />
+                            <DataGridTextColumn Header="Kort Beste" Binding="{Binding ShortBestPosition}" Width="70" />
+                            <DataGridTextColumn Header="Kort Ptn" Binding="{Binding ShortTotalPoints}" Width="65" />
+                            <DataGridTextColumn Header="Mid #" Binding="{Binding MiddleRaces}" Width="55" />
+                            <DataGridTextColumn Header="Mid Gem%" Binding="{Binding MiddleAvgPercentile, StringFormat={}{0:0.0}}" Width="75" />
+                            <DataGridTextColumn Header="Mid Beste" Binding="{Binding MiddleBestPosition}" Width="70" />
+                            <DataGridTextColumn Header="Mid Ptn" Binding="{Binding MiddleTotalPoints}" Width="65" />
+                            <DataGridTextColumn Header="Lang #" Binding="{Binding LongRaces}" Width="55" />
+                            <DataGridTextColumn Header="Lang Gem%" Binding="{Binding LongAvgPercentile, StringFormat={}{0:0.0}}" Width="75" />
+                            <DataGridTextColumn Header="Lang Beste" Binding="{Binding LongBestPosition}" Width="70" />
+                            <DataGridTextColumn Header="Lang Ptn" Binding="{Binding LongTotalPoints}" Width="65" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock Text="Recente vluchtresultaten" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" DockPanel.Dock="Left" />
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                            <TextBlock Text="Filter:" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <ComboBox x:Name="CategoryFilterCombo" Width="120" SelectionChanged="CategoryFilter_Changed" SelectedIndex="0">
+                                <ComboBoxItem Content="Alle" />
+                                <ComboBoxItem Content="Kort" Tag="Short" />
+                                <ComboBoxItem Content="Midden" Tag="Middle" />
+                                <ComboBoxItem Content="Lang" Tag="Long" />
+                            </ComboBox>
+                        </StackPanel>
+                    </DockPanel>
+                    <DataGrid x:Name="ResultsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="180" MaxHeight="500" GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Datum" Binding="{Binding FlightDate, StringFormat={}{0:dd-MM-yyyy HH:mm}}" Width="140" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding FlightType}" Width="80" />
+                            <DataGridTextColumn Header="Locatie" Binding="{Binding Location}" Width="120" />
+                            <DataGridTextColumn Header="Afstand" Binding="{Binding FlightDistanceKm, StringFormat={}{0} km}" Width="80" />
+                            <DataGridTextColumn Header="Cat." Binding="{Binding Category}" Width="65" />
+                            <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                            <DataGridTextColumn Header="Positie" Binding="{Binding Position}" Width="60" />
+                            <DataGridTextColumn Header="/ Totaal" Binding="{Binding TotalParticipants}" Width="65" />
+                            <DataGridTextColumn Header="Top %" Binding="{Binding Percentile, StringFormat={}{0:0.0}%}" Width="65" />
+                            <DataGridTextColumn Header="Punten" Binding="{Binding Points}" Width="60" />
+                            <DataGridTextColumn Header="Gem. snelheid" Binding="{Binding AverageSpeed, StringFormat={}{0:0.00}}" Width="100" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

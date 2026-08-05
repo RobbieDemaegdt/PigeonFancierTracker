@@ -4,7 +4,7 @@ A Windows-first standalone companion application for collecting and reviewing re
 
 The application uses a WPF desktop shell, an authenticated WebView2 browser profile, SQLite persistence through Entity Framework Core, and a GET-only API client. It is designed to preserve historical observations without performing game mutations.
 
-> **Current status:** the project is under active development. The foundation, WebView2 authentication flow, raw response capture, manual Quick synchronization, retry handling, sync-run auditing, dashboard summary, and the first local pigeon history page are implemented. The broader analytics, normalized domain views, scheduled synchronization, exports, and installer described in the implementation plan are still being built.
+> **Current status:** the project is under active development. The foundation, WebView2 authentication flow, raw response capture, manual Quick synchronization, retry handling, sync-run auditing, dashboard summary with pigeon grid, pigeon history, transfer market view, data export/import, data reset, completed transfer tracking, and price estimation analytics are implemented. Scheduled synchronization, normalized domain tables, dashboard charts, and the installer described in the implementation plan are still being built.
 
 ## Safety boundaries
 
@@ -57,6 +57,9 @@ src/
     App.xaml
     MainWindow.xaml
     ConnectionView.xaml
+    PigeonHistoryView.xaml
+    TransferView.xaml
+    DataView.xaml
   PigeonFancierTracker.Core/
     Contracts/
     Domain/
@@ -77,11 +80,11 @@ docs/
 
 | Project | Responsibility |
 | --- | --- |
-| `PigeonFancierTracker.App` | WPF shell, dashboard, connection window, WebView2 host, user actions |
-| `PigeonFancierTracker.Core` | Domain contracts, session states, sync contracts, analytics primitives |
-| `PigeonFancierTracker.Infrastructure` | WebView2 transport, API allowlist, synchronization, SQLite, EF Core, raw capture |
-| `PigeonFancierTracker.Core.Tests` | Pure domain and analytics tests |
-| `PigeonFancierTracker.Infrastructure.Tests` | Allowlist, session, persistence, retry, and synchronization tests |
+| `PigeonFancierTracker.App` | WPF shell, dashboard with pigeon grid, connection window, pigeon history, transfer market, data management (export/import/reset), WebView2 host, user actions |
+| `PigeonFancierTracker.Core` | Domain contracts, session states, sync contracts, API response contracts, transfer data contracts, price estimation contracts, data port contracts, analytics (weekly growth, price estimation) |
+| `PigeonFancierTracker.Infrastructure` | WebView2 transport, API allowlist, synchronization, SQLite, EF Core, raw capture, pigeon history reader, tracker data reader, transfer data reader, data export/import, data reset |
+| `PigeonFancierTracker.Core.Tests` | Weekly growth, price estimation, and API contract deserialization tests |
+| `PigeonFancierTracker.Infrastructure.Tests` | Allowlist, session, persistence, retry, synchronization, tracker data reader, data export, and data import tests |
 
 ## Build the application
 
@@ -178,6 +181,14 @@ After a successful Quick sync, click **Pigeon history** on the dashboard to open
 
 The history page reads SQLite only and does not make a new request to the game. Missing values remain blank. Energy, training, flight results, pedigree, offspring, transfers, finance, and reports will be added in later phases.
 
+### Transfer market
+
+The **Transfers** page shows active and completed transfers from the latest local snapshots. It reads SQLite only and does not make a new request to the game. Completed transfers are persisted in a dedicated `CompletedTransfers` table with skill snapshots, sale prices, bid counts, and buyer/seller details.
+
+### Price estimation
+
+The price estimator uses completed transfer history to estimate a pigeon's market value based on skill similarity. It compares the target pigeon's attributes against historical sales, weighted by similarity, and returns an estimated price with a confidence level (high, medium, or low) based on the number of comparable sales.
+
 ### Standard profile
 
 The Standard profile is implemented in the synchronization catalog for programmatic use and includes the Quick endpoints plus:
@@ -225,6 +236,7 @@ The database currently contains:
 - `RawApiSnapshots` — endpoint, normalized query, status, timestamp, content type, body, SHA-256 hash, context IDs, and error details;
 - `SyncRuns` — one record for each synchronization run;
 - `SyncRunItems` — one record for each endpoint attempt within a run;
+- `CompletedTransfers` — transfer ID, pigeon details, start/sold prices, bid count, buyer/seller, skill snapshot, and detection timestamp;
 - EF Core migration metadata.
 
 Do not copy the WebView2 profile or database to an untrusted location. The WebView2 profile can contain an authenticated browser session.
@@ -232,11 +244,20 @@ Do not copy the WebView2 profile or database to an untrusted location. The WebVi
 ### Sign out and delete data
 
 - Use **Clear session** to remove the saved browser session while retaining collected data.
-- The current UI does not yet provide a **Delete all collected data** command.
+- Use **Alles wissen** (Reset all) on the **Gegevens** (Data) page to permanently delete all collected data, including raw snapshots, sync runs, completed transfers, and saved credentials. This cannot be undone.
 - To delete collected data manually, close the application and remove `tracker.db` from `%LOCALAPPDATA%\PigeonFancierTracker\`. The database will be recreated on the next launch.
 - To remove the saved browser session manually, close the application and remove the `WebView2` directory. The official login will be required on the next launch.
 
-Only delete these files when the application is not running.
+Only delete files manually when the application is not running.
+
+### Data export and import
+
+The **Gegevens** (Data) page provides export and import:
+
+- **Export** saves all local data (raw snapshots, sync runs, and completed transfers) to a `.pfbackup` file. The archive is a ZIP file containing JSON files. It does not contain login credentials or passwords.
+- **Import** reads a `.pfbackup` file and adds new records. Existing records are skipped — the import is additive only.
+
+The `.pfbackup` file can be safely copied via USB, email, or cloud storage to transfer data between devices.
 
 ## Run tests
 
@@ -249,11 +270,16 @@ dotnet test PigeonFancierTracker.sln
 The test suite currently covers:
 
 - weekly growth calculations;
+- price estimation with similarity scoring and confidence levels;
+- API contract deserialization;
 - API GET allowlist behavior;
 - session expiry and selected-fancier state transitions;
 - raw response and sync audit persistence;
 - transient retry behavior;
 - no-retry behavior for `401`;
+- tracker data reader queries;
+- data export to `.pfbackup` archives;
+- data import from `.pfbackup` archives;
 - migration-backed database setup used by the application.
 
 ## Database migrations
@@ -315,11 +341,10 @@ The sync run records the endpoint failure and continues with other endpoints whe
 The current implementation does not yet provide:
 
 - scheduled background synchronization;
-- normalized pigeon, finance, flight, breeding, or transfer domain tables;
+- normalized pigeon, finance, flight, or breeding domain tables;
 - transfer-sale reconciliation;
-- dashboard charts and historical views;
-- JSON and CSV export;
-- database backup UI;
+- dashboard charts and historical trend views;
+- JSON and CSV export (the `.pfbackup` archive export is available);
 - a configurable settings screen;
 - an installer or packaged WebView2 prerequisite;
 - a separate Standard profile button;
@@ -355,7 +380,7 @@ Implementation phases follow [standalone-dotnet-implementation-plan.md](standalo
 1. Solution foundation — complete.
 2. WebView2 authentication — complete in initial form.
 3. Read-only transport and raw capture — complete in initial form.
-4. Normalized MVP data and dashboard — next major phase.
-5. Transfer reconciliation.
+4. Dashboard, transfer market, data management, and price estimation — complete in initial form.
+5. Normalized domain tables and transfer-sale reconciliation — next major phase.
 6. Flights and breeding.
-7. Scheduling, export, packaging, and hardening.
+7. Scheduling, CSV/JSON export, packaging, and hardening.

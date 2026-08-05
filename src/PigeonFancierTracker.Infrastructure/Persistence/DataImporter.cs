@@ -16,7 +16,7 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
 
         progress?.Report(new DataPortProgress("Manifest controleren...", 0));
         var manifest = await ReadJsonEntryAsync<BackupManifest>(archive, "manifest.json", cancellationToken);
-        if (manifest is null || manifest.FormatVersion > 1)
+        if (manifest is null || manifest.FormatVersion > 2)
         {
             return new DataPortResult(false, "Ongeldig of niet-ondersteund back-upbestand.", 0, 0, 0, 0);
         }
@@ -33,6 +33,13 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
         progress?.Report(new DataPortProgress("Transfers laden...", 0.55));
         var transfers = await ReadJsonEntryAsync<List<CompletedTransferEntity>>(archive, "completed_transfers.json", cancellationToken) ?? [];
 
+        var flights = manifest.FormatVersion >= 2
+            ? await ReadJsonEntryAsync<List<FlightEntity>>(archive, "flights.json", cancellationToken) ?? []
+            : [];
+        var flightResults = manifest.FormatVersion >= 2
+            ? await ReadJsonEntryAsync<List<FlightResultEntity>>(archive, "flight_results.json", cancellationToken) ?? []
+            : [];
+
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         progress?.Report(new DataPortProgress("Momentopnamen importeren...", 0.60));
@@ -42,13 +49,19 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
         int syncRunCount = await MergeSyncRunsAsync(db, syncRuns, syncRunItems, cancellationToken);
         int syncRunItemCount = syncRunCount > 0 ? syncRunItems.Count : 0;
 
-        progress?.Report(new DataPortProgress("Transfers importeren...", 0.90));
+        progress?.Report(new DataPortProgress("Transfers importeren...", 0.85));
         int transferCount = await MergeTransfersAsync(db, transfers, cancellationToken);
+
+        progress?.Report(new DataPortProgress("Vluchten importeren...", 0.90));
+        int flightCount = await MergeFlightsAsync(db, flights, cancellationToken);
+
+        progress?.Report(new DataPortProgress("Vluchtresultaten importeren...", 0.95));
+        int flightResultCount = await MergeFlightResultsAsync(db, flightResults, cancellationToken);
 
         progress?.Report(new DataPortProgress("Import voltooid", 1.0));
 
-        var total = snapshotCount + syncRunCount + syncRunItemCount + transferCount;
-        return new DataPortResult(true, $"{total:N0} nieuwe records geïmporteerd.", snapshotCount, syncRunCount, syncRunItemCount, transferCount);
+        var total = snapshotCount + syncRunCount + syncRunItemCount + transferCount + flightCount + flightResultCount;
+        return new DataPortResult(true, $"{total:N0} nieuwe records geïmporteerd.", snapshotCount, syncRunCount, syncRunItemCount, transferCount, flightCount, flightResultCount);
     }
 
     private static async Task<int> MergeSnapshotsAsync(AppDbContext db, List<RawApiSnapshotEntity> incoming, CancellationToken ct)
@@ -139,6 +152,52 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
                 {
                     item.Id = 0;
                     db.CompletedTransfers.Add(item);
+                    added++;
+                }
+            }
+
+            await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+
+        return added;
+    }
+
+    private static async Task<int> MergeFlightsAsync(AppDbContext db, List<FlightEntity> incoming, CancellationToken ct)
+    {
+        int added = 0;
+        foreach (var batch in Chunk(incoming, BatchSize))
+        {
+            foreach (var item in batch)
+            {
+                bool exists = await db.Flights.AnyAsync(x => x.Id == item.Id, ct);
+                if (!exists)
+                {
+                    db.Flights.Add(item);
+                    added++;
+                }
+            }
+
+            await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+
+        return added;
+    }
+
+    private static async Task<int> MergeFlightResultsAsync(AppDbContext db, List<FlightResultEntity> incoming, CancellationToken ct)
+    {
+        int added = 0;
+        foreach (var batch in Chunk(incoming, BatchSize))
+        {
+            foreach (var item in batch)
+            {
+                bool exists = await db.FlightResults.AnyAsync(x =>
+                    x.FlightId == item.FlightId && x.PigeonId == item.PigeonId, ct);
+                if (!exists)
+                {
+                    item.Id = 0;
+                    db.FlightResults.Add(item);
                     added++;
                 }
             }

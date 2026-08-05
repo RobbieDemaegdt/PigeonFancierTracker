@@ -1,0 +1,29 @@
+[
+  {
+    "id": 131,
+    "position": 82,
+    "points": 0,
+    "ageType": 1,
+    "agePosition": 1,
+    "flight": {
+      "id": 35,
+      "ageType": "elder",
+      "start": "2026-07-28T09:00:00",
+      "location": {
+        "id": 265,
+        "name": "rotterdam",
+        "lat": 51.9242,
+        "lng": 4.48178
+      },
+      "public": false,
+      "season": 0,
+      "type": "regional",
+      "status": "notStarted",
+      "canSubscribe": false,
+      "subscribers": 100
+    },
+    "direction": 0,
+    "progress": 0,
+    "pigeonId": 0
+  }
+]

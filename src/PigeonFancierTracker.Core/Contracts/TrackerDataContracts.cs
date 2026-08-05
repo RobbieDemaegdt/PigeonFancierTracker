@@ -26,7 +26,11 @@ public sealed record PigeonListItem(
     string? BreedingMark,
     string? ShortDisplay,
     string? MediumDisplay,
-    string? LongDisplay);
+    string? LongDisplay,
+    int? TotalPoints = null,
+    decimal? TotalEntryFees = null,
+    int? RaceCount = null,
+    string? EarningsDisplay = null);
 
 public sealed record TrackerDashboardData(
     string? FancierName,
@@ -90,7 +94,9 @@ public sealed record PigeonHistoryPoint(
 public sealed record PigeonHistoryData(
     IReadOnlyList<PigeonHistoryPigeon> Pigeons,
     PigeonHistoryPigeon? SelectedPigeon,
-    IReadOnlyList<PigeonHistoryPoint> Points);
+    IReadOnlyList<PigeonHistoryPoint> Points,
+    AgeCurveResult? AgeCurve = null,
+    DiseaseImpactResult? DiseaseImpact = null);
 
 public interface ITrackerDataReader
 {

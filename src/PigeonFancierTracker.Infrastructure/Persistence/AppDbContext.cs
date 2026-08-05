@@ -8,6 +8,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<SyncRunEntity> SyncRuns => Set<SyncRunEntity>();
     public DbSet<SyncRunItemEntity> SyncRunItems => Set<SyncRunItemEntity>();
     public DbSet<CompletedTransferEntity> CompletedTransfers => Set<CompletedTransferEntity>();
+    public DbSet<FlightEntity> Flights => Set<FlightEntity>();
+    public DbSet<FlightResultEntity> FlightResults => Set<FlightResultEntity>();
+    public DbSet<OffspringCacheEntity> OffspringCache => Set<OffspringCacheEntity>();
+    public DbSet<PedigreeCacheEntity> PedigreeCache => Set<PedigreeCacheEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +44,37 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Status).HasMaxLength(32).IsRequired();
             entity.HasIndex(x => new { x.SelectedFancierId, x.TransferId }).IsUnique();
+        });
+
+        modelBuilder.Entity<FlightEntity>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.Property(x => x.Type).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.PayoutType).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.DistanceCategory).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.AgeType).HasMaxLength(32).IsRequired();
+            entity.HasIndex(x => new { x.Season, x.Status });
+        });
+
+        modelBuilder.Entity<FlightResultEntity>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.FlightId, x.PigeonId }).IsUnique();
+            entity.HasIndex(x => x.FancierId);
+        });
+
+        modelBuilder.Entity<OffspringCacheEntity>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.PigeonId).IsUnique();
+        });
+
+        modelBuilder.Entity<PedigreeCacheEntity>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.PigeonId).IsUnique();
         });
     }
 }

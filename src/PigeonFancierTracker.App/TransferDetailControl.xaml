@@ -1,0 +1,223 @@
+<UserControl x:Class="PigeonFancierTracker.App.TransferDetailControl"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Background="Transparent">
+    <StackPanel>
+        <!-- Header with title + close button -->
+        <DockPanel Margin="0,0,0,12">
+            <TextBlock x:Name="DetailTitle" DockPanel.Dock="Left"
+                       Foreground="{DynamicResource HeadingTextBrush}" FontSize="15" FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <Button DockPanel.Dock="Right" Content="Sluiten" HorizontalAlignment="Right"
+                    Style="{StaticResource SecondaryButtonStyle}" FontSize="12" Padding="10,4"
+                    Click="CloseButton_Click" />
+        </DockPanel>
+
+        <!-- Vaardigheden card -->
+        <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6" Padding="14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Vaardigheden" Foreground="{DynamicResource HeadingTextBrush}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10" />
+                <UniformGrid Columns="5" Margin="0,0,0,4">
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Vorm" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailForm" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Ervaring" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailExperience" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Conditie" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailStamina" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Snelheid" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailSpeed" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Navigatie" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailNavigation" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Techniek" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailTechnique" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Aerodynamica" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailAerodynamics" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Intelligentie" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailIntelligence" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Libido" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailLibido" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Nachtzicht" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="DetailNightvision" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <!-- Market + Flock percentile tables side by side -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6" Padding="14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Marktvergelijking" Foreground="{DynamicResource HeadingTextBrush}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <DataGrid x:Name="MarketPercentileGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              HeadersVisibility="Column"
+                              MaxHeight="160"
+                              GridLinesVisibility="Horizontal"
+                              SelectionChanged="MarketPercentileGrid_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Venster" Binding="{Binding WindowLabel}" Width="60" />
+                            <DataGridTextColumn Header="Kort" Binding="{Binding ShortPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="55" />
+                            <DataGridTextColumn Header="Midden" Binding="{Binding MediumPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="65" />
+                            <DataGridTextColumn Header="Lang" Binding="{Binding LongPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="55" />
+                            <DataGridTextColumn Header="Totaal" Binding="{Binding TotalPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="60" />
+                            <DataGridTextColumn Header="Aantal" Binding="{Binding PopulationCount}" Width="55" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Text="Populatie" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,10,0,6" />
+                    <DataGrid x:Name="MarketPopulationGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              HeadersVisibility="Column"
+                              MaxHeight="180"
+                              GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                            <DataGridTextColumn Header="Kort" Binding="{Binding Short, StringFormat={}{0:0.#}}" Width="50" />
+                            <DataGridTextColumn Header="Midden" Binding="{Binding Medium, StringFormat={}{0:0.#}}" Width="55" />
+                            <DataGridTextColumn Header="Lang" Binding="{Binding Long, StringFormat={}{0:0.#}}" Width="50" />
+                            <DataGridTextColumn Header="Totaal" Binding="{Binding Total, StringFormat={}{0:0.#}}" Width="55" />
+                            <DataGridTextColumn Header="Ras" Binding="{Binding Breed, TargetNullValue=—}" Width="65" />
+                            <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age, TargetNullValue=—}" Width="60" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6" Padding="14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Eigen hok" Foreground="{DynamicResource HeadingTextBrush}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <DataGrid x:Name="FlockPercentileGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              HeadersVisibility="Column"
+                              MaxHeight="160"
+                              GridLinesVisibility="Horizontal"
+                              SelectionChanged="FlockPercentileGrid_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Venster" Binding="{Binding WindowLabel}" Width="60" />
+                            <DataGridTextColumn Header="Kort" Binding="{Binding ShortPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="55" />
+                            <DataGridTextColumn Header="Midden" Binding="{Binding MediumPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="65" />
+                            <DataGridTextColumn Header="Lang" Binding="{Binding LongPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="55" />
+                            <DataGridTextColumn Header="Totaal" Binding="{Binding TotalPercentile, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="60" />
+                            <DataGridTextColumn Header="Aantal" Binding="{Binding PopulationCount}" Width="55" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Text="Populatie" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,10,0,6" />
+                    <DataGrid x:Name="FlockPopulationGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              HeadersVisibility="Column"
+                              MaxHeight="180"
+                              GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                            <DataGridTextColumn Header="Kort" Binding="{Binding Short, StringFormat={}{0:0.#}}" Width="50" />
+                            <DataGridTextColumn Header="Midden" Binding="{Binding Medium, StringFormat={}{0:0.#}}" Width="55" />
+                            <DataGridTextColumn Header="Lang" Binding="{Binding Long, StringFormat={}{0:0.#}}" Width="50" />
+                            <DataGridTextColumn Header="Totaal" Binding="{Binding Total, StringFormat={}{0:0.#}}" Width="55" />
+                            <DataGridTextColumn Header="Ras" Binding="{Binding Breed, TargetNullValue=—}" Width="65" />
+                            <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age, TargetNullValue=—}" Width="60" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Price estimate table -->
+        <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6" Padding="14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,10,0,0">
+            <StackPanel>
+                <TextBlock Text="Prijsschatting per leeftijdsvenster" Foreground="{DynamicResource HeadingTextBrush}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10" />
+                <DataGrid x:Name="PriceEstimateGrid"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          HeadersVisibility="Column"
+                          MaxHeight="160"
+                          GridLinesVisibility="Horizontal"
+                          SelectionChanged="PriceEstimateGrid_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Venster" Binding="{Binding WindowLabel}" Width="60" />
+                        <DataGridTextColumn Header="Geschat" Binding="{Binding EstimatedPrice, StringFormat=€{0:N0}, TargetNullValue=—}" Width="75" />
+                        <DataGridTextColumn Header="Min" Binding="{Binding MinPrice, StringFormat=€{0:N0}, TargetNullValue=—}" Width="70" />
+                        <DataGridTextColumn Header="Max" Binding="{Binding MaxPrice, StringFormat=€{0:N0}, TargetNullValue=—}" Width="70" />
+                        <DataGridTextColumn Header="Vergelijkbaar" Binding="{Binding ComparableCount}" Width="90" />
+                        <DataGridTextColumn Header="Vertrouwen" Binding="{Binding Confidence, TargetNullValue=—}" Width="80" />
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <TextBlock Text="Vergelijkbare duiven" Foreground="{DynamicResource HeadingTextBrush}" FontSize="13" FontWeight="SemiBold" Margin="0,14,0,8" />
+                <DataGrid x:Name="ComparablesGrid"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          HeadersVisibility="Column"
+                          MaxHeight="220"
+                          GridLinesVisibility="Horizontal">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                        <DataGridTextColumn Header="Verkoopprijs" Binding="{Binding SoldPrice, StringFormat=€{0:N0}}" Width="85" />
+                        <DataGridTextColumn Header="Gecorrigeerd" Binding="{Binding AdjustedPrice, StringFormat=€{0:N0}}" Width="85" />
+                        <DataGridTextColumn Header="Gelijkenis" Binding="{Binding Similarity, StringFormat={}{0:P1}}" Width="75" />
+                        <DataGridTextColumn Header="Ras" Binding="{Binding Breed, TargetNullValue=—}" Width="80" />
+                        <DataGridTextColumn Header="Leeftijd" Binding="{Binding AgeDisplay, TargetNullValue=—}" Width="65" />
+                        <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkill, StringFormat={}{0:0.#}, TargetNullValue=—}" Width="60" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </Border>
+
+        <!-- Auto-bid add controls -->
+        <Border x:Name="AutoBidPanel" Visibility="Collapsed"
+                Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6" Padding="14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,10,0,0">
+            <DockPanel>
+                <TextBlock Text="Automatisch bieden" DockPanel.Dock="Left"
+                           Foreground="{DynamicResource HeadingTextBrush}" FontSize="13" FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Max prijs:" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox x:Name="AutoBidMaxPriceInput" Width="80" FontSize="12" Padding="4,3"
+                             VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Button Content="Toevoegen" Style="{StaticResource PrimaryButtonStyle}"
+                            FontSize="12" Padding="12,4" Click="AddToAutoBid_Click" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

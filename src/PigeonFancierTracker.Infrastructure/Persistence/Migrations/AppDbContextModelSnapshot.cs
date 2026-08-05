@@ -29,6 +29,9 @@ namespace PigeonFancierTracker.Infrastructure.Persistence.Migrations
                     b.Property<int>("BidCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Breed")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTimeOffset>("DetectedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -79,6 +82,170 @@ namespace PigeonFancierTracker.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("CompletedTransfers");
+                });
+
+            modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.FlightEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AgeType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Department")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DistanceCategory")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DistanceKm")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("EntryPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("LocationLat")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("LocationLng")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("LocationName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayoutType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ResultsFetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Season")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Start")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Subscribers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Season", "Status");
+
+                    b.ToTable("Flights");
+                });
+
+            modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.FlightResultEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("AverageSpeed")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FancierId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FlightId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PigeonDistance")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PigeonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PigeonName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalParticipants")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FancierId");
+
+                    b.HasIndex("FlightId", "PigeonId")
+                        .IsUnique();
+
+                    b.ToTable("FlightResults");
+                });
+
+            modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.OffspringCacheEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("FetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OffspringJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PigeonId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PigeonId")
+                        .IsUnique();
+
+                    b.ToTable("OffspringCache");
+                });
+
+            modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.PedigreeCacheEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("FetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PedigreeJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PigeonId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PigeonId")
+                        .IsUnique();
+
+                    b.ToTable("PedigreeCache");
                 });
 
             modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.RawApiSnapshotEntity", b =>

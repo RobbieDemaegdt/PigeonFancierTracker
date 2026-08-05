@@ -1,50 +1,76 @@
-﻿using System.Windows;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Threading;
 using System.Globalization;
 using System.Windows.Media;
 using PigeonFancierTracker.Core.Contracts;
 using PigeonFancierTracker.Core.Domain;
+using PigeonFancierTracker.Infrastructure.Persistence;
 
 namespace PigeonFancierTracker.App;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
     private readonly ISessionStateService sessionState;
     private readonly ISyncCoordinator syncCoordinator;
     private readonly ITrackerDataReader trackerDataReader;
+    private readonly IBreedingDataReader breedingDataReader;
+    private readonly FlightResultIngester flightResultIngester;
+    private readonly ISettingsService settings;
     private readonly ConnectionView connectionView;
     private readonly PigeonHistoryView pigeonHistoryView;
     private readonly TransferView transferView;
+    private readonly FlightResultsView flightResultsView;
     private readonly DataView dataView;
+    private readonly IAutoBidService autoBidService;
+    private readonly DispatcherTimer autoSyncTimer;
+    private IReadOnlyList<PigeonListItem>? allPigeons;
 
     public MainWindow(
         ISessionStateService sessionState,
         ISyncCoordinator syncCoordinator,
         ITrackerDataReader trackerDataReader,
+        IBreedingDataReader breedingDataReader,
+        FlightResultIngester flightResultIngester,
+        ISettingsService settings,
+        StartupManager startupManager,
         ConnectionView connectionView,
         PigeonHistoryView pigeonHistoryView,
         TransferView transferView,
-        DataView dataView)
+        FlightResultsView flightResultsView,
+        DataView dataView,
+        IAutoBidService autoBidService)
     {
         InitializeComponent();
         this.sessionState = sessionState;
         this.syncCoordinator = syncCoordinator;
         this.trackerDataReader = trackerDataReader;
+        this.breedingDataReader = breedingDataReader;
+        this.flightResultIngester = flightResultIngester;
+        this.settings = settings;
         this.connectionView = connectionView;
         this.pigeonHistoryView = pigeonHistoryView;
         this.transferView = transferView;
+        this.flightResultsView = flightResultsView;
+        this.autoBidService = autoBidService;
         this.dataView = dataView;
         ConnectionHost.Content = connectionView;
         HistoryHost.Content = pigeonHistoryView;
         TransferHost.Content = transferView;
+        FlightsHost.Content = flightResultsView;
         DataHost.Content = dataView;
         sessionState.Changed += SessionState_Changed;
         syncCoordinator.ProgressChanged += SyncCoordinator_ProgressChanged;
         connectionView.SyncCompleted += ConnectionView_SyncCompleted;
         UpdateSessionDisplay(sessionState.Current);
+        UpdateThemeButtonText();
         _ = RefreshDataAsync();
+
+        startupManager.RefreshExePath();
+
+        autoSyncTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(30) };
+        autoSyncTimer.Tick += AutoSyncTimer_Tick;
+
         ContentRendered += MainWindow_ContentRendered;
     }
 
@@ -61,8 +87,19 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // Startup session restore is best-effort.
         }
+
+        autoSyncTimer.Start();
+    }
+
+    private void AutoSyncTimer_Tick(object? sender, EventArgs e)
+    {
+        if (!settings.AutoDailySync) return;
+        if (syncCoordinator.IsRunning) return;
+        if (sessionState.Current.State != SessionState.AuthenticatedReady) return;
+        if (settings.LastAutoSyncDate == DateOnly.FromDateTime(DateTime.Now)) return;
+
+        connectionView.StartSync();
     }
 
     public void OpenDashboardView()
@@ -76,15 +113,9 @@ public partial class MainWindow : Window
         connectionView.Focus();
     }
 
-    private void OpenDashboard_Click(object sender, RoutedEventArgs e)
-    {
-        OpenDashboardView();
-    }
+    private void OpenDashboard_Click(object sender, RoutedEventArgs e) => OpenDashboardView();
 
-    private void OpenConnection_Click(object sender, RoutedEventArgs e)
-    {
-        OpenConnectionView();
-    }
+    private void OpenConnection_Click(object sender, RoutedEventArgs e) => OpenConnectionView();
 
     private void OpenPigeonHistory_Click(object sender, RoutedEventArgs e)
     {
@@ -98,10 +129,7 @@ public partial class MainWindow : Window
         _ = transferView.RefreshAsync();
     }
 
-    private void DashboardPrimaryAction_Click(object sender, RoutedEventArgs e)
-    {
-        OpenConnectionView();
-    }
+    private void DashboardPrimaryAction_Click(object sender, RoutedEventArgs e) => OpenConnectionView();
 
     private void SessionState_Changed(object? sender, SessionSnapshot snapshot)
     {
@@ -109,10 +137,7 @@ public partial class MainWindow : Window
         _ = RefreshDataAsync();
     }
 
-    private void RefreshData_Click(object sender, RoutedEventArgs e)
-    {
-        _ = RefreshDataAsync();
-    }
+    private void RefreshData_Click(object sender, RoutedEventArgs e) => _ = RefreshDataAsync();
 
     private async void ConnectionView_SyncCompleted(object? sender, SyncRunResult result)
     {
@@ -125,9 +150,30 @@ public partial class MainWindow : Window
             _ => "Mislukt",
         };
         SyncStatusText.Text = result.Status;
+
+        if (result.IsSuccess)
+        {
+            settings.LastAutoSyncDate = DateOnly.FromDateTime(DateTime.Now);
+            settings.Save();
+        }
+
         await RefreshDataAsync();
         await pigeonHistoryView.RefreshAsync();
         await transferView.RefreshAsync();
+
+        try
+        {
+            var fancierId = sessionState.Current.SelectedFancier?.Id;
+            if (fancierId is int fid)
+            {
+                SyncStatusText.Text = "Vluchten ophalen...";
+                await flightResultIngester.IngestAsync(fid);
+                SyncStatusText.Text = result.Status;
+            }
+        }
+        catch
+        {
+        }
     }
 
     private void SyncCoordinator_ProgressChanged(object? sender, SyncProgress progress)
@@ -177,6 +223,7 @@ public partial class MainWindow : Window
         var selectedFancierId = sessionState.Current.SelectedFancier?.Id;
         if (selectedFancierId is not int fancierId)
         {
+            allPigeons = null;
             PigeonGrid.ItemsSource = null;
             DataMessageText.Text = "Selecteer een melker en voer een sync uit om lokale data te laden.";
             DataPigeonCountText.Text = "—";
@@ -194,7 +241,8 @@ public partial class MainWindow : Window
         try
         {
             var data = await trackerDataReader.GetDashboardAsync(fancierId);
-            PigeonGrid.ItemsSource = data.Pigeons;
+            allPigeons = data.Pigeons;
+            ApplyPigeonFilter();
             DataMessageText.Text = data.Pigeons.Count == 0
                 ? "Er is nog geen duivenmomentopname beschikbaar. Voer nu een sync uit om er een vast te leggen."
                 : $"Laatste lokale momentopname voor {data.FancierName ?? $"melker #{fancierId}"}.";
@@ -215,6 +263,8 @@ public partial class MainWindow : Window
                 ? $"{occ} / {cap}"
                 : "—";
             FancierLocationText.Text = data.LocationName ?? "";
+
+            _ = LoadBreedingAnalysisAsync(fancierId);
         }
         catch (Exception exception)
         {
@@ -222,12 +272,45 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task LoadBreedingAnalysisAsync(int fancierId)
+    {
+        BreedingStatusText.Text = "Fokgegevens worden geladen...";
+        BreedingPairGrid.ItemsSource = null;
+        InbreedingGrid.ItemsSource = null;
+        BreedingPairCountText.Text = "—";
+        FlockInbreedingText.Text = "—";
+        PedigreeCountText.Text = "—";
+
+        try
+        {
+            var data = await breedingDataReader.GetBreedingAnalysisAsync(fancierId);
+            BreedingPairGrid.ItemsSource = data.PairPerformance;
+            InbreedingGrid.ItemsSource = data.InbreedingReport;
+            BreedingPairCountText.Text = data.PairPerformance.Count.ToString(CultureInfo.CurrentCulture);
+            FlockInbreedingText.Text = data.FlockAvgInbreeding > 0
+                ? $"{data.FlockAvgInbreeding:P2}"
+                : "0%";
+            PedigreeCountText.Text = data.InbreedingReport.Count(i => i.LineageDepth > 0)
+                .ToString(CultureInfo.CurrentCulture);
+            BreedingStatusText.Text = data.PairPerformance.Count == 0 && data.InbreedingReport.Count == 0
+                ? "Geen fokgegevens beschikbaar. Zorg dat er koppels en stamboomgegevens zijn."
+                : "";
+        }
+        catch (Exception ex)
+        {
+            BreedingStatusText.Text = $"Fokanalyse kon niet worden geladen: {ex.Message}";
+        }
+    }
+
     private static string FormatCurrency(decimal? value) =>
         value?.ToString("C2", CultureInfo.CurrentCulture) ?? "—";
 
-    private void OpenData_Click(object sender, RoutedEventArgs e)
+    private void OpenData_Click(object sender, RoutedEventArgs e) => SetPage(DataPage);
+
+    private void OpenFlights_Click(object sender, RoutedEventArgs e)
     {
-        SetPage(DataPage);
+        SetPage(FlightsPage);
+        _ = flightResultsView.RefreshAsync();
     }
 
     private void SetPage(UIElement page)
@@ -236,16 +319,75 @@ public partial class MainWindow : Window
         ConnectionPage.Visibility = page == ConnectionPage ? Visibility.Visible : Visibility.Collapsed;
         HistoryPage.Visibility = page == HistoryPage ? Visibility.Visible : Visibility.Collapsed;
         TransferPage.Visibility = page == TransferPage ? Visibility.Visible : Visibility.Collapsed;
+        FlightsPage.Visibility = page == FlightsPage ? Visibility.Visible : Visibility.Collapsed;
         DataPage.Visibility = page == DataPage ? Visibility.Visible : Visibility.Collapsed;
         DashboardNavButton.FontWeight = page == DashboardPage ? FontWeights.SemiBold : FontWeights.Normal;
         ConnectionNavButton.FontWeight = page == ConnectionPage ? FontWeights.SemiBold : FontWeights.Normal;
         HistoryNavButton.FontWeight = page == HistoryPage ? FontWeights.SemiBold : FontWeights.Normal;
         TransferNavButton.FontWeight = page == TransferPage ? FontWeights.SemiBold : FontWeights.Normal;
+        FlightsNavButton.FontWeight = page == FlightsPage ? FontWeights.SemiBold : FontWeights.Normal;
         DataNavButton.FontWeight = page == DataPage ? FontWeights.SemiBold : FontWeights.Normal;
+    }
+
+    private void ThemeToggle_Click(object sender, RoutedEventArgs e)
+    {
+        settings.DarkMode = !settings.DarkMode;
+        settings.Save();
+        ((App)Application.Current).ApplyTheme(settings.DarkMode);
+        UpdateThemeButtonText();
+    }
+
+    private void UpdateThemeButtonText()
+    {
+        ThemeToggleButton.Content = settings.DarkMode ? "☀ Licht thema" : "☽ Donker thema";
+    }
+
+    private void PigeonSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplyPigeonFilter();
+    }
+
+    private void ApplyPigeonFilter()
+    {
+        if (allPigeons is null)
+        {
+            PigeonGrid.ItemsSource = null;
+            return;
+        }
+
+        var search = PigeonSearchBox.Text?.Trim();
+        if (string.IsNullOrEmpty(search))
+        {
+            PigeonGrid.ItemsSource = allPigeons;
+        }
+        else
+        {
+            PigeonGrid.ItemsSource = allPigeons
+                .Where(p => p.DisplayName?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+        }
+    }
+
+    private void ShowAllColumns_Changed(object sender, RoutedEventArgs e)
+    {
+        var show = ShowAllColumnsToggle.IsChecked == true;
+        var vis = show ? Visibility.Visible : Visibility.Collapsed;
+        ColForm.Visibility = vis;
+        ColExperience.Visibility = vis;
+        ColStamina.Visibility = vis;
+        ColSpeed.Visibility = vis;
+        ColNavigation.Visibility = vis;
+        ColTechnique.Visibility = vis;
+        ColAerodynamics.Visibility = vis;
+        ColIntelligence.Visibility = vis;
+        ColLibido.Visibility = vis;
+        ColNightvision.Visibility = vis;
     }
 
     protected override void OnClosed(EventArgs e)
     {
+        autoBidService.Stop();
+        autoSyncTimer.Stop();
         sessionState.Changed -= SessionState_Changed;
         syncCoordinator.ProgressChanged -= SyncCoordinator_ProgressChanged;
         connectionView.SyncCompleted -= ConnectionView_SyncCompleted;

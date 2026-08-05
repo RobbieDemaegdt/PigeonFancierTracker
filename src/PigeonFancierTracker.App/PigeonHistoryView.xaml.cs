@@ -64,6 +64,8 @@ public partial class PigeonHistoryView : UserControl
 
             HistoryGrid.ItemsSource = data.Points;
             UpdateSummary(data);
+            PopulateAgeCurve(data);
+            PopulateDiseaseImpact(data);
             HistoryStatusText.Text = data.Points.Count == 0
                 ? data.Pigeons.Count == 0
                     ? "Geen duivengegevens gevonden in de lokale momentopnames. Voer eerst een sync uit."
@@ -102,6 +104,55 @@ public partial class PigeonHistoryView : UserControl
         LatestPremiumText.Text = latest?.Premium?.ToString("C2", CultureInfo.CurrentCulture) ?? "—";
         ObservationCountText.Text = data.Points.Count.ToString(CultureInfo.CurrentCulture);
         LatestObservedText.Text = latest?.ObservedAtUtc.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? "—";
+    }
+
+    private void PopulateAgeCurve(PigeonHistoryData data)
+    {
+        if (data.AgeCurve is { Buckets.Count: > 0 } curve)
+        {
+            AgeCurveStatusText.Text = $"{curve.Buckets.Count} leeftijdsbucket(s) beschikbaar.";
+            AgeCurveSummary.Visibility = Visibility.Visible;
+            AgeBucketGrid.Visibility = Visibility.Visible;
+            AgeCurveExpander.Visibility = Visibility.Visible;
+            AgeCurveExpander.IsExpanded = true;
+
+            PeakSkillAgeText.Text = curve.PeakSkillAge.HasValue ? $"{curve.PeakSkillAge}m" : "—";
+            PeakPerformanceAgeText.Text = curve.PeakPerformanceAge.HasValue ? $"{curve.PeakPerformanceAge}m" : "—";
+            PeakTotalSkillText.Text = curve.PeakTotalSkill.HasValue ? $"{curve.PeakTotalSkill:0.0}" : "—";
+            PhaseDisplayText.Text = curve.PhaseDisplay ?? "—";
+            AgeBucketGrid.ItemsSource = curve.Buckets;
+        }
+        else
+        {
+            AgeCurveExpander.Visibility = Visibility.Collapsed;
+            AgeCurveSummary.Visibility = Visibility.Collapsed;
+            AgeBucketGrid.Visibility = Visibility.Collapsed;
+            AgeBucketGrid.ItemsSource = null;
+        }
+    }
+
+    private void PopulateDiseaseImpact(PigeonHistoryData data)
+    {
+        if (data.DiseaseImpact is { TotalEpisodes: > 0 } impact)
+        {
+            DiseaseImpactStatusText.Text = $"{impact.TotalEpisodes} ziekte-episode(s) gedetecteerd.";
+            DiseaseImpactSummary.Visibility = Visibility.Visible;
+            DiseaseEpisodesGrid.Visibility = Visibility.Visible;
+            DiseaseImpactExpander.Visibility = Visibility.Visible;
+            DiseaseImpactExpander.IsExpanded = true;
+
+            TotalEpisodesText.Text = impact.TotalEpisodes.ToString(CultureInfo.CurrentCulture);
+            AvgSkillLossText.Text = $"{impact.AvgSkillLoss:0.0}";
+            AvgRecoveryText.Text = impact.AvgRecoveryPercentage.HasValue ? $"{impact.AvgRecoveryPercentage:0.0}%" : "—";
+            DiseaseEpisodesGrid.ItemsSource = impact.Episodes;
+        }
+        else
+        {
+            DiseaseImpactExpander.Visibility = Visibility.Collapsed;
+            DiseaseImpactSummary.Visibility = Visibility.Collapsed;
+            DiseaseEpisodesGrid.Visibility = Visibility.Collapsed;
+            DiseaseEpisodesGrid.ItemsSource = null;
+        }
     }
 
     private static string FormatNumber(decimal? value) =>

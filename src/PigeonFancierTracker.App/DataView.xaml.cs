@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using PigeonFancierTracker.Core.Contracts;
+using PigeonFancierTracker.Infrastructure.Persistence;
 
 namespace PigeonFancierTracker.App;
 
@@ -11,16 +12,32 @@ public partial class DataView : UserControl
     private readonly IDataImporter importer;
     private readonly IDataResetter resetter;
     private readonly ISessionStateService sessionState;
+    private readonly ISettingsService settings;
+    private readonly StartupManager startupManager;
     private CancellationTokenSource? exportCts;
     private CancellationTokenSource? importCts;
+    private bool suppressSettingsEvents;
 
-    public DataView(IDataExporter exporter, IDataImporter importer, IDataResetter resetter, ISessionStateService sessionState)
+    public DataView(
+        IDataExporter exporter,
+        IDataImporter importer,
+        IDataResetter resetter,
+        ISessionStateService sessionState,
+        ISettingsService settings,
+        StartupManager startupManager)
     {
         InitializeComponent();
         this.exporter = exporter;
         this.importer = importer;
         this.resetter = resetter;
         this.sessionState = sessionState;
+        this.settings = settings;
+        this.startupManager = startupManager;
+
+        suppressSettingsEvents = true;
+        LaunchOnStartupCheckBox.IsChecked = startupManager.IsEnabled();
+        AutoDailySyncCheckBox.IsChecked = settings.AutoDailySync;
+        suppressSettingsEvents = false;
     }
 
     private async void ExportButton_Click(object sender, RoutedEventArgs e)
@@ -181,5 +198,39 @@ public partial class DataView : UserControl
             ImportStatusText.Text = "";
             ImportDetailText.Text = "";
         }
+    }
+
+    private void LaunchOnStartupCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (suppressSettingsEvents) return;
+
+        var enabled = LaunchOnStartupCheckBox.IsChecked == true;
+        try
+        {
+            if (enabled)
+                startupManager.Enable();
+            else
+                startupManager.Disable();
+
+            settings.LaunchOnStartup = enabled;
+            settings.Save();
+            SettingsStatusText.Text = "";
+        }
+        catch (Exception ex)
+        {
+            SettingsStatusText.Text = $"Fout: {ex.Message}";
+            suppressSettingsEvents = true;
+            LaunchOnStartupCheckBox.IsChecked = !enabled;
+            suppressSettingsEvents = false;
+        }
+    }
+
+    private void AutoDailySyncCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (suppressSettingsEvents) return;
+
+        settings.AutoDailySync = AutoDailySyncCheckBox.IsChecked == true;
+        settings.Save();
+        SettingsStatusText.Text = "";
     }
 }

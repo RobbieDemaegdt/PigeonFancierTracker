@@ -2,10 +2,14 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PigeonFancierTracker.Core.Analytics;
 using PigeonFancierTracker.Core.Contracts;
+using PigeonFancierTracker.Infrastructure.PigeonFancierApi;
 
 namespace PigeonFancierTracker.Infrastructure.Persistence;
 
-public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFactory) : ITransferDataReader
+public sealed class TransferDataReader(
+    IDbContextFactory<AppDbContext> contextFactory,
+    ITrackerDataReader trackerDataReader,
+    PigeonFancierApiClient? apiClient = null) : ITransferDataReader
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -71,7 +75,34 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
             .Select(t => AttachPriceEstimate(t, historicalSales))
             .ToList();
 
-        return new TransferPageData(activeWithEstimates, completedWithEstimates);
+        // Build comparison populations filtered by age and attach to active transfers
+        var dashboard = await trackerDataReader.GetDashboardAsync(selectedFancierId, cancellationToken);
+
+        var activeWithComparison = activeWithEstimates
+            .Select(t => AttachStatsComparison(t, completedWithEstimates, dashboard.Pigeons))
+            .ToList();
+
+        var completedWithComparison = completedWithEstimates
+            .Select(t => AttachStatsComparison(t, completedWithEstimates, dashboard.Pigeons))
+            .ToList();
+
+        var soldTransfers = completedWithComparison
+            .Where(t => t.Status == TransferStatus.Sold && t.SoldPrice.HasValue && t.TotalSkill.HasValue)
+            .ToList();
+
+        var marketSalePoints = soldTransfers
+            .Where(t => t.End.HasValue)
+            .Select(t => new MarketSalePoint(t.SoldPrice!.Value, t.TotalSkill!.Value, t.End!.Value))
+            .ToList();
+        var marketTrend = MarketTrendCalculator.Calculate(marketSalePoints);
+
+        var auctionInputs = soldTransfers
+            .Where(t => t.End.HasValue && t.StartPrice.HasValue)
+            .Select(t => new AuctionTimingInput(t.End!.Value, t.StartPrice!.Value, t.SoldPrice!.Value, t.BidCount))
+            .ToList();
+        var auctionTiming = AuctionTimingCalculator.Calculate(auctionInputs);
+
+        return new TransferPageData(activeWithComparison, completedWithComparison, marketTrend, auctionTiming);
     }
 
     private async Task PersistNewlyCompletedTransfers(
@@ -81,43 +112,275 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
         int selectedFancierId,
         CancellationToken cancellationToken)
     {
-        var newlyCompleted = DetectCompletedTransfers(transferSnapshots, nameTranslations);
-        if (newlyCompleted.Count == 0)
-            return;
+        var newlyCompleted = await DetectCompletedTransfers(transferSnapshots, nameTranslations);
 
-        var existingIds = await db.CompletedTransfers
-            .Where(x => x.SelectedFancierId == selectedFancierId)
-            .Select(x => x.TransferId)
-            .ToListAsync(cancellationToken);
-
-        var existingIdSet = new HashSet<int>(existingIds);
-
-        foreach (var item in newlyCompleted)
+        if (newlyCompleted.Count > 0)
         {
-            if (existingIdSet.Contains(item.TransferId))
-                continue;
+            var existingIds = await db.CompletedTransfers
+                .Where(x => x.SelectedFancierId == selectedFancierId)
+                .Select(x => x.TransferId)
+                .ToListAsync(cancellationToken);
 
-            db.CompletedTransfers.Add(new CompletedTransferEntity
+            var existingIdSet = new HashSet<int>(existingIds);
+
+            foreach (var item in newlyCompleted)
             {
-                TransferId = item.TransferId,
-                PigeonId = item.PigeonId,
-                SelectedFancierId = selectedFancierId,
-                Status = item.Status.ToString(),
-                StartPrice = item.StartPrice,
-                SoldPrice = item.SoldPrice,
-                Seller = item.Seller,
-                SoldTo = item.SoldTo,
-                PigeonName = item.PigeonName,
-                Sex = item.Sex,
-                Age = item.Age,
-                BidCount = item.BidCount,
-                TransferStart = item.Start,
-                TransferEnd = item.End,
-                DetectedAtUtc = DateTimeOffset.UtcNow,
-                SkillsJson = SerializeSkills(item),
-            });
+                if (existingIdSet.Contains(item.TransferId))
+                    continue;
+
+                db.CompletedTransfers.Add(new CompletedTransferEntity
+                {
+                    TransferId = item.TransferId,
+                    PigeonId = item.PigeonId,
+                    SelectedFancierId = selectedFancierId,
+                    Status = item.Status.ToString(),
+                    StartPrice = item.StartPrice,
+                    SoldPrice = item.SoldPrice,
+                    Seller = item.Seller,
+                    SoldTo = item.SoldTo,
+                    PigeonName = item.PigeonName,
+                    Sex = item.Sex,
+                    Age = item.Age,
+                    Breed = item.Breed,
+                    BidCount = item.BidCount,
+                    TransferStart = item.Start,
+                    TransferEnd = item.End,
+                    DetectedAtUtc = DateTimeOffset.UtcNow,
+                    SkillsJson = SerializeSkills(item),
+                });
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
         }
 
+        await UpgradeExpiredToSoldAsync(db, transferSnapshots, selectedFancierId, cancellationToken);
+    }
+
+    private async Task UpgradeExpiredToSoldAsync(
+        AppDbContext db,
+        List<RawApiSnapshotEntity> transferSnapshots,
+        int selectedFancierId,
+        CancellationToken cancellationToken)
+    {
+        var entitiesToCheck = await db.CompletedTransfers
+            .Where(x => x.SelectedFancierId == selectedFancierId)
+            .ToListAsync(cancellationToken);
+
+        if (entitiesToCheck.Count == 0)
+            return;
+
+        var liveItems = await FetchProcessedTransfersFromApiAsync(cancellationToken);
+
+        if (liveItems is null && HasApiAccess)
+            return;
+
+        var processedSource = liveItems
+            ?? transferSnapshots
+                .Where(x => x.NormalizedQuery.Contains("processed=true", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.CapturedAtUtc)
+                .SelectMany(s => DeserializeTransfers(s.ResponseBodyJson));
+
+        var processedItems = processedSource
+            .Where(x => x.Id.HasValue)
+            .GroupBy(x => x.Id!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        foreach (var entity in entitiesToCheck)
+        {
+            if (processedItems.TryGetValue(entity.TransferId, out var processedItem)
+                && processedItem.Buyer is not null
+                && processedItem.Price is not null)
+            {
+                var newSoldTo = processedItem.Buyer.DisplayName;
+                var needsUpdate = entity.Status != TransferStatus.Sold.ToString()
+                    || entity.SoldTo != newSoldTo
+                    || entity.SoldPrice != processedItem.Price;
+
+                if (needsUpdate)
+                {
+                    entity.Status = TransferStatus.Sold.ToString();
+                    entity.SoldPrice = processedItem.Price;
+                    entity.SoldTo = newSoldTo;
+                    entity.Seller = processedItem.Fancier?.DisplayName ?? entity.Seller;
+                    entity.BidCount = processedItem.Bidders?.Count ?? entity.BidCount;
+                }
+            }
+        }
+
+        // For entities still not resolved, try the pigeonId-specific endpoint
+        var unresolved = entitiesToCheck
+            .Where(e => e.Status != TransferStatus.Sold.ToString() && e.PigeonId.HasValue)
+            .ToList();
+
+        foreach (var entity in unresolved)
+        {
+            var pigeonTransfers = await FetchProcessedTransfersForPigeonAsync(entity.PigeonId!.Value, cancellationToken);
+            if (pigeonTransfers is null)
+                continue;
+
+            var match = pigeonTransfers.FirstOrDefault(x => x.Id == entity.TransferId);
+            if (match is { Buyer: not null, Price: not null })
+            {
+                entity.Status = TransferStatus.Sold.ToString();
+                entity.SoldPrice = match.Price;
+                entity.SoldTo = match.Buyer.DisplayName;
+                entity.Seller = match.Fancier?.DisplayName ?? entity.Seller;
+                entity.BidCount = match.Bidders?.Count ?? entity.BidCount;
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<bool> RecheckTransferStatusAsync(
+        int selectedFancierId,
+        int transferId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var entity = await db.CompletedTransfers
+            .FirstOrDefaultAsync(
+                x => x.SelectedFancierId == selectedFancierId && x.TransferId == transferId,
+                cancellationToken);
+
+        if (entity is null || entity.Status == TransferStatus.Sold.ToString())
+            return false;
+
+        var processedSnapshots = (await db.RawApiSnapshots
+            .AsNoTracking()
+            .Where(x => x.SelectedFancierId == selectedFancierId
+                && x.Endpoint == "/api/transfer"
+                && x.StatusCode >= 200
+                && x.StatusCode < 300
+                && x.NormalizedQuery.Contains("processed=true"))
+            .ToListAsync(cancellationToken))
+            .OrderByDescending(x => x.CapturedAtUtc)
+            .ToList();
+
+        foreach (var snapshot in processedSnapshots)
+        {
+            var items = DeserializeTransfers(snapshot.ResponseBodyJson);
+            var match = items.FirstOrDefault(x => x.Id == transferId);
+            if (match is { Buyer: not null, Price: not null })
+            {
+                entity.Status = TransferStatus.Sold.ToString();
+                entity.SoldPrice = match.Price;
+                entity.SoldTo = match.Buyer.DisplayName;
+                entity.Seller = match.Fancier?.DisplayName ?? entity.Seller;
+                entity.BidCount = match.Bidders?.Count ?? entity.BidCount;
+                await db.SaveChangesAsync(cancellationToken);
+                return true;
+            }
+        }
+
+        var liveItems = await FetchProcessedTransfersFromApiAsync(cancellationToken);
+        var liveMatch = liveItems?.FirstOrDefault(x => x.Id == transferId);
+        if (liveMatch is { Buyer: not null, Price: not null })
+        {
+            entity.Status = TransferStatus.Sold.ToString();
+            entity.SoldPrice = liveMatch.Price;
+            entity.SoldTo = liveMatch.Buyer.DisplayName;
+            entity.Seller = liveMatch.Fancier?.DisplayName ?? entity.Seller;
+            entity.BidCount = liveMatch.Bidders?.Count ?? entity.BidCount;
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        if (entity.PigeonId.HasValue)
+        {
+            var pigeonTransfers = await FetchProcessedTransfersForPigeonAsync(entity.PigeonId.Value, cancellationToken);
+            var pigeonMatch = pigeonTransfers?.FirstOrDefault(x => x.Id == transferId);
+            if (pigeonMatch is { Buyer: not null, Price: not null })
+            {
+                entity.Status = TransferStatus.Sold.ToString();
+                entity.SoldPrice = pigeonMatch.Price;
+                entity.SoldTo = pigeonMatch.Buyer.DisplayName;
+                entity.Seller = pigeonMatch.Fancier?.DisplayName ?? entity.Seller;
+                entity.BidCount = pigeonMatch.Bidders?.Count ?? entity.BidCount;
+                await db.SaveChangesAsync(cancellationToken);
+                return true;
+            }
+        }
+
+        if (entity.BidCount > 0)
+        {
+            entity.Status = TransferStatus.Sold.ToString();
+            entity.SoldPrice ??= entity.StartPrice;
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task UpdateTransferStatusAsync(
+        int selectedFancierId,
+        int transferId,
+        TransferStatus newStatus,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var entity = await db.CompletedTransfers
+            .FirstOrDefaultAsync(
+                x => x.SelectedFancierId == selectedFancierId && x.TransferId == transferId,
+                cancellationToken);
+
+        if (entity is null)
+            return;
+
+        entity.Status = newStatus.ToString();
+        if (newStatus == TransferStatus.Expired)
+        {
+            entity.SoldPrice = null;
+            entity.SoldTo = null;
+        }
+        else if (newStatus == TransferStatus.Sold)
+        {
+            entity.SoldPrice ??= entity.StartPrice;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateTransferBuyerAsync(
+        int selectedFancierId,
+        int transferId,
+        string? buyer,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var entity = await db.CompletedTransfers
+            .FirstOrDefaultAsync(
+                x => x.SelectedFancierId == selectedFancierId && x.TransferId == transferId,
+                cancellationToken);
+
+        if (entity is null)
+            return;
+
+        entity.SoldTo = string.IsNullOrWhiteSpace(buyer) ? null : buyer;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateTransferSoldPriceAsync(
+        int selectedFancierId,
+        int transferId,
+        decimal? soldPrice,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var entity = await db.CompletedTransfers
+            .FirstOrDefaultAsync(
+                x => x.SelectedFancierId == selectedFancierId && x.TransferId == transferId,
+                cancellationToken);
+
+        if (entity is null)
+            return;
+
+        entity.SoldPrice = soldPrice;
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -144,6 +407,7 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
                 e.PigeonName ?? $"Pigeon #{e.TransferId}",
                 e.Sex,
                 e.Age,
+                e.Breed,
                 e.StartPrice,
                 e.SoldPrice ?? e.StartPrice,
                 e.Seller,
@@ -169,10 +433,7 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
                 FormatSkill(skills?.Long),
                 status,
                 e.SoldPrice,
-                e.SoldTo,
-                EstimatedPrice: null,
-                EstimatedPriceDisplay: null,
-                PriceDeltaDisplay: null);
+                e.SoldTo);
         }).ToList();
     }
 
@@ -218,7 +479,10 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
                 t.SoldPrice!.Value,
                 t.TotalSkill,
                 ParseAgeToMonths(t.Age),
+                t.Breed,
                 t.BidCount,
+                t.PigeonName,
+                t.TransferId,
                 ParseSkill(t.FormDisplay),
                 ParseSkill(t.ExperienceDisplay),
                 ParseSkill(t.SpeedDisplay),
@@ -236,9 +500,12 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
         TransferListItem item,
         IReadOnlyList<CompletedTransferSummary> historicalSales)
     {
+        var targetAgeMonths = ParseAgeToMonths(item.Age);
+
         var request = new PriceEstimationRequest(
             item.TotalSkill,
-            ParseAgeToMonths(item.Age),
+            targetAgeMonths,
+            item.Breed,
             ParseSkill(item.FormDisplay),
             ParseSkill(item.ExperienceDisplay),
             ParseSkill(item.SpeedDisplay),
@@ -250,29 +517,12 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
             ParseSkill(item.NightvisionDisplay),
             ParseSkill(item.NavigationDisplay));
 
-        var result = PriceEstimator.Estimate(request, historicalSales);
-
-        string? estimatedDisplay = result is not null
-            ? $"€{result.EstimatedPrice:N0}"
-            : null;
-
-        string? deltaDisplay = null;
-        if (result is not null && item.Status == TransferStatus.Sold && item.SoldPrice.HasValue)
-        {
-            var delta = item.SoldPrice.Value - result.EstimatedPrice;
-            deltaDisplay = delta switch
-            {
-                > 0 => $"+€{delta:N0} ↑",
-                < 0 => $"−€{Math.Abs(delta):N0} ↓",
-                _ => "€0",
-            };
-        }
+        var priceEstimates = MultiWindowPriceEstimator.Estimate(
+            request, targetAgeMonths, historicalSales);
 
         return item with
         {
-            EstimatedPrice = result?.EstimatedPrice,
-            EstimatedPriceDisplay = estimatedDisplay,
-            PriceDeltaDisplay = deltaDisplay,
+            PriceEstimates = priceEstimates,
         };
     }
 
@@ -298,7 +548,7 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
         return null;
     }
 
-    private IReadOnlyList<TransferListItem> DetectCompletedTransfers(
+    private async Task<IReadOnlyList<TransferListItem>> DetectCompletedTransfers(
         List<RawApiSnapshotEntity> transferSnapshots,
         PigeonNameTranslations nameTranslations)
     {
@@ -330,8 +580,10 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
             .OrderByDescending(x => x.CapturedAtUtc)
             .ToList();
 
-        var processedItems = processedSnapshots
-            .SelectMany(s => DeserializeTransfers(s.ResponseBodyJson))
+        var liveItems = await FetchProcessedTransfersFromApiAsync();
+
+        var processedItems = (liveItems ?? processedSnapshots
+                .SelectMany(s => DeserializeTransfers(s.ResponseBodyJson)))
             .Where(x => x.Id.HasValue)
             .GroupBy(x => x.Id!.Value)
             .ToDictionary(g => g.Key, g => g.First());
@@ -345,6 +597,26 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
             {
                 completed.Add(CreateTransferListItem(
                     processedItem, nameTranslations, TransferStatus.Sold));
+                continue;
+            }
+
+            // Try pigeonId-specific endpoint before falling back to heuristics
+            if (item.Pigeon?.Id is int pigeonId)
+            {
+                var pigeonTransfers = await FetchProcessedTransfersForPigeonAsync(pigeonId);
+                var pigeonMatch = pigeonTransfers?.FirstOrDefault(x => x.Id == item.Id);
+                if (pigeonMatch is { Buyer: not null, Price: not null })
+                {
+                    completed.Add(CreateTransferListItem(
+                        pigeonMatch, nameTranslations, TransferStatus.Sold));
+                    continue;
+                }
+            }
+
+            if (item.Bidders is { Count: > 0 })
+            {
+                completed.Add(CreateTransferListItem(
+                    item with { Buyer = null }, nameTranslations, TransferStatus.Sold));
             }
             else
             {
@@ -355,6 +627,53 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
 
         return completed.OrderByDescending(x => x.End).ToList();
     }
+
+    private async Task<IReadOnlyList<TransferItemDto>?> FetchProcessedTransfersFromApiAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (apiClient is null)
+            return null;
+
+        try
+        {
+            var query = new Dictionary<string, string?> { ["processed"] = "true" };
+            var response = await apiClient.GetJsonAsync("/api/transfer", query, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return null;
+            return DeserializeTransfers(response.Body);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<IReadOnlyList<TransferItemDto>?> FetchProcessedTransfersForPigeonAsync(
+        int pigeonId,
+        CancellationToken cancellationToken = default)
+    {
+        if (apiClient is null)
+            return null;
+
+        try
+        {
+            var query = new Dictionary<string, string?>
+            {
+                ["processed"] = "true",
+                ["pigeonId"] = pigeonId.ToString(),
+            };
+            var response = await apiClient.GetJsonAsync("/api/transfer", query, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return null;
+            return DeserializeTransfers(response.Body);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private bool HasApiAccess => apiClient is not null;
 
     private static TransferListItem CreateTransferListItem(
         TransferItemDto item,
@@ -395,6 +714,7 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
             displayName,
             sexDisplay,
             age,
+            pigeon?.Breed,
             item.StartPrice,
             displayPrice,
             item.Fancier?.DisplayName ?? "-",
@@ -420,10 +740,7 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
             FormatDistanceStat(ToOneBased(skills?.Stamina), ToOneBased(skills?.Navigation), ToOneBased(skills?.Intelligence)),
             status,
             status == TransferStatus.Sold ? item.Price : null,
-            status == TransferStatus.Sold ? item.Buyer?.DisplayName : null,
-            EstimatedPrice: null,
-            EstimatedPriceDisplay: null,
-            PriceDeltaDisplay: null);
+            status == TransferStatus.Sold ? item.Buyer?.DisplayName : null);
     }
 
     private static string FormatTimeRemaining(DateTimeOffset? end, TransferStatus status)
@@ -489,6 +806,78 @@ public sealed class TransferDataReader(IDbContextFactory<AppDbContext> contextFa
         }
 
         return [];
+    }
+
+    private static DistanceStats? ExtractDistanceStats(TransferListItem item)
+    {
+        var s = ParseSkill(item.ShortDisplay);
+        var m = ParseSkill(item.MediumDisplay);
+        var l = ParseSkill(item.LongDisplay);
+        var t = item.TotalSkill;
+        if (s is null || m is null || l is null || t is null)
+            return null;
+        return new DistanceStats(s.Value, m.Value, l.Value, t.Value);
+    }
+
+    private static DistanceStats? ExtractDistanceStats(PigeonListItem item)
+    {
+        var s = ParseSkill(item.ShortDisplay);
+        var m = ParseSkill(item.MediumDisplay);
+        var l = ParseSkill(item.LongDisplay);
+        var t = item.TotalSkill;
+        if (s is null || m is null || l is null || t is null)
+            return null;
+        return new DistanceStats(s.Value, m.Value, l.Value, t.Value);
+    }
+
+    private static PercentilePopulationMember? ExtractPopulationMember(TransferListItem item)
+    {
+        var stats = ExtractDistanceStats(item);
+        if (stats is null) return null;
+        return new PercentilePopulationMember(
+            item.PigeonName, item.TransferId,
+            stats.Short, stats.Medium, stats.Long, stats.Total,
+            item.Breed, item.Age);
+    }
+
+    private static PercentilePopulationMember? ExtractPopulationMember(PigeonListItem item)
+    {
+        var stats = ExtractDistanceStats(item);
+        if (stats is null) return null;
+        return new PercentilePopulationMember(
+            item.DisplayName, item.SourceId,
+            stats.Short, stats.Medium, stats.Long, stats.Total,
+            item.Breed, item.Age);
+    }
+
+    private static TransferListItem AttachStatsComparison(
+        TransferListItem item,
+        IReadOnlyList<TransferListItem> marketTransfers,
+        IReadOnlyList<PigeonListItem> flockPigeons)
+    {
+        var target = ExtractDistanceStats(item);
+        if (target is null)
+            return item;
+
+        var targetAgeMonths = ParseAgeToMonths(item.Age);
+
+        var marketPercentiles = MultiWindowComparer.Compare(
+            target, targetAgeMonths, marketTransfers,
+            t => ParseAgeToMonths(t.Age),
+            ExtractDistanceStats,
+            ExtractPopulationMember);
+
+        var flockPercentiles = MultiWindowComparer.Compare(
+            target, targetAgeMonths, flockPigeons,
+            p => ParseAgeToMonths(p.Age),
+            ExtractDistanceStats,
+            ExtractPopulationMember);
+
+        return item with
+        {
+            MarketPercentiles = marketPercentiles,
+            FlockPercentiles = flockPercentiles,
+        };
     }
 }
 
