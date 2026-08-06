@@ -10,8 +10,9 @@ public sealed class DistanceProfileCalculatorTests
 {
     [Theory]
     [InlineData(100, DistanceCategory.Short)]
-    [InlineData(300, DistanceCategory.Short)]
-    [InlineData(301, DistanceCategory.Middle)]
+    [InlineData(200, DistanceCategory.Short)]
+    [InlineData(201, DistanceCategory.Middle)]
+    [InlineData(300, DistanceCategory.Middle)]
     [InlineData(500, DistanceCategory.Middle)]
     [InlineData(501, DistanceCategory.Long)]
     [InlineData(1000, DistanceCategory.Long)]

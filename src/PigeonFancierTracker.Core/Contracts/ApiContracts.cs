@@ -39,12 +39,14 @@ public sealed record FinanceSummaryDto(
     [property: JsonPropertyName("savings")] decimal? Savings);
 
 public sealed record FoodStockDto(
-    [property: JsonPropertyName("amount")] decimal? Amount,
-    [property: JsonPropertyName("value")] decimal? Value);
+    [property: JsonPropertyName("barley")] int? Barley,
+    [property: JsonPropertyName("grain")] int? Grain,
+    [property: JsonPropertyName("corn")] int? Corn,
+    [property: JsonPropertyName("peanut")] int? Peanut);
 
 public sealed record PenDto(
-    [property: JsonPropertyName("capacity")] int? Capacity,
-    [property: JsonPropertyName("occupied")] int? Occupied);
+    [property: JsonPropertyName("tier")] string? Tier,
+    [property: JsonPropertyName("dirt")] int? Dirt);
 
 public sealed record PigeonDto(
     [property: JsonPropertyName("id")] int? Id,

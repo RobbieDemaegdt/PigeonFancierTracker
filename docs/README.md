@@ -1,8 +1,8 @@
 # Pigeon Fancier Tracker
 
-A Windows-first standalone companion application for collecting and reviewing read-only Pigeon Fancier data locally.
+A standalone companion application for collecting and reviewing Pigeon Fancier data locally.
 
-The application uses a WPF desktop shell, an authenticated WebView2 browser profile, SQLite persistence through Entity Framework Core, and a GET-only API client. It is designed to preserve historical observations without performing game mutations.
+The application has two modes: a **WPF desktop app** for interactive use on Windows, and a **headless worker service** that runs autonomously in Docker as its own pigeon fancier. Both share the same Core and Infrastructure libraries, with SQLite persistence through Entity Framework Core.
 
 > **Current status:** the project is under active development. The foundation, WebView2 authentication flow, raw response capture, manual Quick synchronization, retry handling, sync-run auditing, dashboard summary with pigeon grid, pigeon history, transfer market view, data export/import, data reset, completed transfer tracking, and price estimation analytics are implemented. Scheduled synchronization, normalized domain tables, dashboard charts, and the installer described in the implementation plan are still being built.
 
@@ -50,29 +50,18 @@ The solution targets `net10.0` for the Core and Infrastructure libraries and `ne
 
 ```text
 PigeonFancierTracker.sln
-README.md
-standalone-dotnet-implementation-plan.md
+docker-compose.yml
 src/
-  PigeonFancierTracker.App/
-    App.xaml
-    MainWindow.xaml
-    ConnectionView.xaml
-    PigeonHistoryView.xaml
-    TransferView.xaml
-    DataView.xaml
-  PigeonFancierTracker.Core/
-    Contracts/
-    Domain/
-    Analytics/
-  PigeonFancierTracker.Infrastructure/
-    Persistence/
-    PigeonFancierApi/
-    Sync/
-    WebView2/
+  PigeonFancierTracker.App/          # WPF desktop application (Windows)
+  PigeonFancierTracker.Worker/       # Headless worker service (cross-platform / Docker)
+  PigeonFancierTracker.Core/         # Shared contracts, domain, analytics
+  PigeonFancierTracker.Infrastructure/ # Shared persistence, API, sync, auth
 tests/
   PigeonFancierTracker.Core.Tests/
   PigeonFancierTracker.Infrastructure.Tests/
-fixtures/
+  PigeonFancierTracker.App.Tests/
+tools/
+  FlightDiscovery/                   # API endpoint exploration tool
 docs/
 ```
 
@@ -81,8 +70,9 @@ docs/
 | Project | Responsibility |
 | --- | --- |
 | `PigeonFancierTracker.App` | WPF shell, dashboard with pigeon grid, connection window, pigeon history, transfer market, data management (export/import/reset), WebView2 host, user actions |
+| `PigeonFancierTracker.Worker` | Headless `BackgroundService` that runs autonomously in Docker: login, periodic sync, flight ingestion, auto-bid |
 | `PigeonFancierTracker.Core` | Domain contracts, session states, sync contracts, API response contracts, transfer data contracts, price estimation contracts, data port contracts, analytics (weekly growth, price estimation) |
-| `PigeonFancierTracker.Infrastructure` | WebView2 transport, API allowlist, synchronization, SQLite, EF Core, raw capture, pigeon history reader, tracker data reader, transfer data reader, data export/import, data reset |
+| `PigeonFancierTracker.Infrastructure` | API client, API allowlist, synchronization, SQLite, EF Core, raw capture, pigeon history reader, tracker data reader, transfer data reader, auto-bid service, data export/import, data reset |
 | `PigeonFancierTracker.Core.Tests` | Weekly growth, price estimation, and API contract deserialization tests |
 | `PigeonFancierTracker.Infrastructure.Tests` | Allowlist, session, persistence, retry, synchronization, tracker data reader, data export, and data import tests |
 
@@ -153,6 +143,129 @@ The Connection page provides a three-step guide and contextual actions:
 - **Sign out and clear saved session** — clear WebView2 browsing data after confirmation. This does not delete the local SQLite database.
 
 The Dashboard distinguishes a network sync from **Refresh local data**. During synchronization it shows determinate endpoint progress and a final success, partial-success, cancelled, expired, or failed summary.
+
+## Headless worker (Docker)
+
+The headless worker runs as an autonomous pigeon fancier — its own account operating 24/7 without human intervention. It performs login, periodic data synchronization, flight result ingestion, and automated bidding on transfers.
+
+### Requirements
+
+- Docker and Docker Compose (Linux containers)
+- A dedicated Pigeon Fancier account for the worker
+- The fancier ID for the account
+
+### Quick start with Docker Compose
+
+1. Create a `.env` file in the repository root:
+
+```text
+PF_EMAIL=your-worker-account@example.com
+PF_PASSWORD=your-password
+PF_FANCIER_ID=7
+PF_SYNC_INTERVAL=30
+PF_AUTOBID=false
+```
+
+2. Start the worker:
+
+```text
+docker compose up -d
+```
+
+3. Check the logs:
+
+```text
+docker compose logs -f worker
+```
+
+The worker will log in, select the fancier, run an initial sync with flight ingestion, and then repeat on the configured interval.
+
+### Running without Docker
+
+The worker can also run directly on any platform with the .NET 10 runtime:
+
+```text
+dotnet run --project src/PigeonFancierTracker.Worker -- --Worker:Email=your@email.com --Worker:Password=yourpass --Worker:FancierId=7
+```
+
+Or with environment variables:
+
+```text
+PF_EMAIL=your@email.com PF_PASSWORD=yourpass dotnet run --project src/PigeonFancierTracker.Worker -- --Worker:FancierId=7
+```
+
+### Configuration
+
+All configuration is provided via the `Worker` section in `appsettings.json` or as environment variables. In Docker, use the `Worker__Key` naming convention for environment variables.
+
+| Setting | Environment variable | Default | Description |
+| --- | --- | --- | --- |
+| `Worker:Email` | `Worker__Email` | | Login email for the worker's Pigeon Fancier account |
+| `Worker:Password` | `Worker__Password` | | Login password |
+| `Worker:FancierId` | `Worker__FancierId` | `0` | The fancier ID to select after login |
+| `Worker:SyncIntervalMinutes` | `Worker__SyncIntervalMinutes` | `30` | Minutes between sync cycles |
+| `Worker:AutoBidEnabled` | `Worker__AutoBidEnabled` | `false` | Enable the auto-bid polling loop |
+| `Worker:AutoBidRules` | `Worker__AutoBidRules__0__*` | `[]` | List of auto-bid rules (see below) |
+| `Worker:ManagementEnabled` | `Worker__ManagementEnabled` | `false` | Enable autonomous fancier management |
+| `Worker:AutoFlightEnabled` | `Worker__AutoFlightEnabled` | `true` | Auto-enroll pigeons in flights (requires management) |
+| `Worker:DryRun` | `Worker__DryRun` | `true` | Log intended actions without executing them |
+
+### Auto-bid rules
+
+Auto-bid rules are configured as a JSON array in `appsettings.json`:
+
+```json
+{
+  "Worker": {
+    "AutoBidEnabled": true,
+    "AutoBidRules": [
+      { "TransferId": 123, "PigeonName": "Storm", "MaxPrice": 500 },
+      { "TransferId": 456, "PigeonName": "Bliksem", "MaxPrice": 300 }
+    ]
+  }
+}
+```
+
+When auto-bid is enabled, the worker polls active transfers every 20-45 seconds and places bids at 110% of the current price, up to the configured maximum.
+
+### Worker lifecycle
+
+The worker follows this lifecycle on each iteration:
+
+1. **Authenticate** — log in with the configured credentials, select the fancier, and validate the session.
+2. **Sync** — run a Quick sync profile (13 API endpoints with retry and concurrency).
+3. **Ingest flights** — discover and fetch flight results for all pigeons.
+4. **Manage fancier** — if `ManagementEnabled`, run autonomous management (flight enrollment, etc.). Uses the game rules documented in [GAME_GUIDE.md](GAME_GUIDE.md) for all decisions.
+5. **Auto-bid** — if enabled, poll transfers and place bids autonomously.
+6. **Wait** — sleep for the configured interval, then repeat from step 1.
+
+### Session recovery
+
+The worker automatically handles session expiry:
+
+- If the session expires during a sync, it re-authenticates and retries.
+- If the auto-bid service detects a 401, it stops and the worker re-authenticates before the next cycle.
+- Authentication retries up to 5 times with exponential backoff.
+
+### Data persistence
+
+The worker stores its SQLite database at `/data/tracker.db` inside the container. The `docker-compose.yml` maps this to a named volume (`worker-data`) so data persists across container restarts.
+
+To access the database from the host:
+
+```text
+docker compose cp worker:/data/tracker.db ./tracker-backup.db
+```
+
+### Adding new behaviors
+
+The worker is designed to be extended with new autonomous capabilities. To add a new behavior:
+
+1. Create a new service in `PigeonFancierTracker.Infrastructure` (following the `AutoBidService` pattern).
+2. Add any new GET paths to `PigeonFancierApiAllowlist`.
+3. Add any new POST paths to `HttpClientWriteTransport`.
+4. Add configuration to `WorkerOptions`.
+5. Start/stop the behavior from `FancierWorkerService`.
 
 ## Synchronization
 
@@ -362,6 +475,12 @@ dotnet restore PigeonFancierTracker.sln
 dotnet build PigeonFancierTracker.sln
 dotnet test PigeonFancierTracker.sln
 dotnet run --project src/PigeonFancierTracker.App/PigeonFancierTracker.App.csproj
+```
+
+To run the headless worker locally during development:
+
+```text
+dotnet run --project src/PigeonFancierTracker.Worker -- --Worker:Email=... --Worker:Password=... --Worker:FancierId=7 --Worker:SyncIntervalMinutes=5
 ```
 
 When changing a protocol path or adding a collector endpoint:

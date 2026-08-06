@@ -5,7 +5,7 @@ namespace PigeonFancierTracker.Core.Analytics;
 
 public static class DistanceProfileCalculator
 {
-    public const int ShortMaxKm = 300;
+    public const int ShortMaxKm = 200;
     public const int MiddleMaxKm = 500;
 
     public static DistanceCategory Classify(int distanceKm)

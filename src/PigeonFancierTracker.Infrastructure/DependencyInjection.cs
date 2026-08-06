@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PigeonFancierTracker.Core.Contracts;
 using PigeonFancierTracker.Infrastructure.AutoBid;
 using PigeonFancierTracker.Infrastructure.Http;
+using PigeonFancierTracker.Infrastructure.Management;
 using PigeonFancierTracker.Infrastructure.Persistence;
 using PigeonFancierTracker.Infrastructure.PigeonFancierApi;
 using PigeonFancierTracker.Infrastructure.Sync;
@@ -13,11 +14,9 @@ namespace PigeonFancierTracker.Infrastructure;
 
 public static class DependencyInjection
 {
-    [SupportedOSPlatform("windows")]
-    public static IServiceCollection AddPigeonFancierTrackerInfrastructure(
+    public static IServiceCollection AddPigeonFancierTrackerCore(
         this IServiceCollection services,
-        string databasePath,
-        string appDataDirectory)
+        string databasePath)
     {
         services.AddDbContextFactory<AppDbContext>(options => options.UseSqlite($"Data Source={databasePath}"));
         services.AddSingleton<DatabaseInitializer>();
@@ -33,9 +32,6 @@ public static class DependencyInjection
         services.AddSingleton<IAuthenticatedWriteTransport, HttpClientWriteTransport>();
         services.AddSingleton<IAutoBidService, AutoBidService>();
         services.AddSingleton<ILoginService, LoginService>();
-        services.AddSingleton<ICredentialStore>(_ => new CredentialStore(appDataDirectory));
-        services.AddSingleton<ISettingsService>(_ => new SettingsService(appDataDirectory));
-        services.AddSingleton<StartupManager>();
         services.AddSingleton<PigeonFancierApiClient>();
         services.AddSingleton<ISyncCoordinator, SyncCoordinator>();
         services.AddSingleton<FlightResultIngester>();
@@ -45,6 +41,34 @@ public static class DependencyInjection
         services.AddSingleton<IDataResetter, DataResetter>();
         services.AddSingleton<PedigreeDataFetcher>();
         services.AddSingleton<IBreedingDataReader, BreedingDataReader>();
+        services.AddSingleton<IFinanceGuard, FinanceGuard>();
+        services.AddSingleton<IFlightManager, FlightManager>();
+        services.AddSingleton<IFoodManager, FoodManager>();
+        services.AddSingleton<ITrainingManager, TrainingManager>();
+        services.AddSingleton<ILoftManager, LoftManager>();
+        services.AddSingleton<IBreedingManager, BreedingManager>();
+        return services;
+    }
+
+    [SupportedOSPlatform("windows")]
+    public static IServiceCollection AddPigeonFancierTrackerWindows(
+        this IServiceCollection services,
+        string appDataDirectory)
+    {
+        services.AddSingleton<ICredentialStore>(_ => new CredentialStore(appDataDirectory));
+        services.AddSingleton<ISettingsService>(_ => new SettingsService(appDataDirectory));
+        services.AddSingleton<StartupManager>();
+        return services;
+    }
+
+    [SupportedOSPlatform("windows")]
+    public static IServiceCollection AddPigeonFancierTrackerInfrastructure(
+        this IServiceCollection services,
+        string databasePath,
+        string appDataDirectory)
+    {
+        services.AddPigeonFancierTrackerCore(databasePath);
+        services.AddPigeonFancierTrackerWindows(appDataDirectory);
         return services;
     }
 }

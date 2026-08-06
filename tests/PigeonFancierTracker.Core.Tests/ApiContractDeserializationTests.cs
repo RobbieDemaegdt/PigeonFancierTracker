@@ -31,6 +31,9 @@ public sealed class ApiContractDeserializationTests
         selected.Department.Should().Be(1);
         selected.Location!.Name.Should().Be("merchtem");
         selected.Finances!.Capital.Should().Be(4590);
+        selected.Pen.Should().NotBeNull();
+        selected.Pen!.Tier.Should().Be("dilapidated");
+        selected.Pen.Dirt.Should().Be(0);
     }
 
     [Fact]

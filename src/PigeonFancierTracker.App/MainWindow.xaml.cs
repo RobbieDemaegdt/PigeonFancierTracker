@@ -92,12 +92,25 @@ public partial class MainWindow : Window
         autoSyncTimer.Start();
     }
 
-    private void AutoSyncTimer_Tick(object? sender, EventArgs e)
+    private async void AutoSyncTimer_Tick(object? sender, EventArgs e)
     {
         if (!settings.AutoDailySync) return;
         if (syncCoordinator.IsRunning) return;
-        if (sessionState.Current.State != SessionState.AuthenticatedReady) return;
         if (settings.LastAutoSyncDate == DateOnly.FromDateTime(DateTime.Now)) return;
+
+        if (sessionState.Current.State != SessionState.AuthenticatedReady)
+        {
+            try
+            {
+                await connectionView.TryRestoreSessionAsync();
+            }
+            catch
+            {
+                return;
+            }
+
+            if (sessionState.Current.State != SessionState.AuthenticatedReady) return;
+        }
 
         connectionView.StartSync();
     }
@@ -248,7 +261,7 @@ public partial class MainWindow : Window
                 : $"Laatste lokale momentopname voor {data.FancierName ?? $"melker #{fancierId}"}.";
             DataPigeonCountText.Text = data.PigeonCount?.ToString(CultureInfo.CurrentCulture) ?? "—";
             DataCapitalText.Text = FormatCurrency(data.Capital);
-            DataFoodText.Text = data.FoodAmount is decimal food ? $"Voeder: {food:N0}" : "";
+            DataFoodText.Text = data.FoodDistribution is { } dist ? $"Voeder: {dist}" : "";
             DataAverageSkillText.Text = data.AverageTotalSkill?.ToString("N1", CultureInfo.CurrentCulture) ?? "—";
             DataAverageSkillChangeText.Text = data.AverageSkillChange is decimal avgChange
                 ? avgChange.ToString("+0.0;-0.0;0.0", CultureInfo.CurrentCulture)

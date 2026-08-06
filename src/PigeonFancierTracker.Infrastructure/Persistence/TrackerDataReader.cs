@@ -88,11 +88,17 @@ public sealed class TrackerDataReader(IDbContextFactory<AppDbContext> contextFac
             relevantSnapshots.FirstOrDefault()?.CapturedAtUtc,
             season?.Number,
             season?.Week,
-            selectedFancier?.Pen?.Occupied,
-            selectedFancier?.Pen?.Capacity,
+            selectedFancier?.PigeonCount,
+            Management.LoftManager.GetCapacityForTier(selectedFancier?.Pen?.Tier),
             selectedFancier?.Location?.Name,
-            selectedFancier?.Food?.Amount,
+            FormatFoodDistribution(selectedFancier?.Food),
             pigeonRows);
+    }
+
+    private static string? FormatFoodDistribution(FoodStockDto? food)
+    {
+        if (food is null) return null;
+        return $"B:{food.Barley}% G:{food.Grain}% C:{food.Corn}% P:{food.Peanut}%";
     }
 
     private static PigeonListItem CreatePigeonRow(

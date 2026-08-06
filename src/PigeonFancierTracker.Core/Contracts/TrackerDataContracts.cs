@@ -47,7 +47,7 @@ public sealed record TrackerDashboardData(
     int? PenOccupied,
     int? PenCapacity,
     string? LocationName,
-    decimal? FoodAmount,
+    string? FoodDistribution,
     IReadOnlyList<PigeonListItem> Pigeons);
 
 public sealed record PigeonHistoryPigeon(

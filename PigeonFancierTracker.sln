@@ -23,6 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlightDiscovery", "tools\FlightDiscovery\FlightDiscovery.csproj", "{DBAA64C1-054A-4807-854A-0EB92C21626A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PigeonFancierTracker.Worker", "src\PigeonFancierTracker.Worker\PigeonFancierTracker.Worker.csproj", "{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -117,6 +119,18 @@ Global
 		{DBAA64C1-054A-4807-854A-0EB92C21626A}.Release|x64.Build.0 = Release|Any CPU
 		{DBAA64C1-054A-4807-854A-0EB92C21626A}.Release|x86.ActiveCfg = Release|Any CPU
 		{DBAA64C1-054A-4807-854A-0EB92C21626A}.Release|x86.Build.0 = Release|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Debug|x64.Build.0 = Debug|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Debug|x86.Build.0 = Debug|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Release|x64.ActiveCfg = Release|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Release|x64.Build.0 = Release|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Release|x86.ActiveCfg = Release|Any CPU
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -129,5 +143,6 @@ Global
 		{F5FA383A-CAB7-4E26-9D8E-AF4875F982EA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{8D1C7EE9-E001-4F23-BA46-587FED40E72A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{DBAA64C1-054A-4807-854A-0EB92C21626A} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{E7A3C4B1-9F2D-4A8E-B5C6-3D1F0E8A7B2C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

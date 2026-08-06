@@ -1,0 +1,27 @@
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: src/PigeonFancierTracker.Worker/Dockerfile
+    environment:
+      - Worker__Email=${PF_EMAIL}
+      - Worker__Password=${PF_PASSWORD}
+      - Worker__FancierId=${PF_FANCIER_ID}
+      - Worker__SyncIntervalMinutes=${PF_SYNC_INTERVAL:-30}
+      - Worker__AutoBidEnabled=${PF_AUTOBID:-false}
+      - Worker__ManagementEnabled=${PF_MANAGEMENT:-false}
+      - Worker__AutoFlightEnabled=${PF_AUTOFLIGHT:-true}
+      - Worker__AutoFeedEnabled=${PF_AUTOFEED:-true}
+      - Worker__MinFoodDaysReserve=${PF_MINFOODDAYS:-7}
+      - Worker__AutoFinanceGuardEnabled=${PF_AUTOFINANCE:-true}
+      - Worker__MinBalanceAlert=${PF_MINBALANCE:-1000}
+      - Worker__AutoTrainEnabled=${PF_AUTOTRAIN:-true}
+      - Worker__AutoLoftEnabled=${PF_AUTOLOFT:-true}
+      - Worker__AutoBreedEnabled=${PF_AUTOBREED:-false}
+      - Worker__DryRun=${PF_DRYRUN:-true}
+    volumes:
+      - worker-data:/data
+    restart: unless-stopped
+
+volumes:
+  worker-data:
