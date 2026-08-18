@@ -8,6 +8,135 @@
         <StackPanel Margin="20">
             <TextBlock x:Name="FlightStatusText" Text="Vluchten laden..." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,12" />
 
+            <!-- Active Flight -->
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,6">
+                        <TextBlock Text="Actieve vlucht" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" DockPanel.Dock="Left" />
+                        <Button x:Name="DiagnosticsToggleButton" Content="Diagnostiek" Click="DiagnosticsToggle_Click" Padding="8,2" FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                    </DockPanel>
+                    <TextBlock x:Name="ActiveFlightHeaderText" Text="Geen actieve vlucht op dit moment." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+                    <Border x:Name="DiagnosticsPanel" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Vlucht-diagnostiek" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <TextBlock x:Name="DiagnosticsText" Text="Klik op Diagnostiek..." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel x:Name="ActiveFlightDetails" Visibility="Collapsed">
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="Prijzentabel" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                            <Button Content="Kopieer vluchtinfo" Click="CopyActiveFlightInfo_Click" Padding="8,2" FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                        </DockPanel>
+                        <TextBlock x:Name="ActivePrizeInfo" Text="" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,6" />
+                        <DataGrid x:Name="ActivePrizeTableGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="40" MaxHeight="200" GridLinesVisibility="Horizontal" Margin="0,0,0,12">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Posities" Binding="{Binding RangeDisplay}" Width="100" />
+                                <DataGridTextColumn Header="Aantal" Binding="{Binding Count}" Width="70" />
+                                <DataGridTextColumn Header="Punten" Binding="{Binding PointsPerPosition}" Width="70" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Text="Klassement per duif" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <DataGrid x:Name="ActivePigeonGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="300" GridLinesVisibility="Horizontal" Margin="0,0,0,12">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Positie" Binding="{Binding Position}" Width="65" />
+                                <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                                <DataGridTextColumn Header="Melker" Binding="{Binding FancierName}" Width="1*" />
+                                <DataGridTextColumn Header="Punten" Binding="{Binding Points}" Width="65" />
+                                <DataGridTextColumn Header="Prijzengeld" Binding="{Binding PrizeMoney, StringFormat=EUR {0:0.00}}" Width="100" />
+                                <DataGridTextColumn Header="Snelheid" Binding="{Binding CurrentSpeed, StringFormat={}{0:0.00}}" Width="90" />
+                                <DataGridTextColumn Header="Resterend" Binding="{Binding RemainingDistance, StringFormat={}{0} km}" Width="90" />
+                                <DataGridTextColumn Header="Voortgang" Binding="{Binding Progress, StringFormat={}{0}%}" Width="80" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Text="Klassement per melker" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <DataGrid x:Name="ActiveFancierGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="300" GridLinesVisibility="Horizontal">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Melker" Binding="{Binding FancierName}" Width="1.5*" />
+                                <DataGridTextColumn Header="Totaal punten" Binding="{Binding TotalPoints}" Width="100" />
+                                <DataGridTextColumn Header="Prijzengeld" Binding="{Binding TotalPrizeMoney, StringFormat=EUR {0:0.00}}" Width="110" />
+                                <DataGridTextColumn Header="In prijs" Binding="{Binding PrizePigeonCount}" Width="65" />
+                                <DataGridTextColumn Header="Duiven" Binding="{Binding PigeonCount}" Width="65" />
+                                <DataGridTextColumn Header="Beste positie" Binding="{Binding BestPosition}" Width="95" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Upcoming Flights -->
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Komende vluchten" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBlock x:Name="UpcomingFlightsStatusText" Text="Geen komende vluchten gevonden." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <DataGrid x:Name="UpcomingFlightsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="250" GridLinesVisibility="Horizontal" Margin="0,0,0,12" SelectionChanged="UpcomingFlightsGrid_SelectionChanged" Visibility="Collapsed">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Datum" Binding="{Binding Start, StringFormat={}{0:dd-MM-yyyy HH:mm}}" Width="140" />
+                            <DataGridTextColumn Header="Locatie" Binding="{Binding Location}" Width="120" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding FlightType}" Width="80" />
+                            <DataGridTextColumn Header="Afstand" Binding="{Binding DistanceKm, StringFormat={}{0} km}" Width="80" />
+                            <DataGridTextColumn Header="Cat." Binding="{Binding Category}" Width="65" />
+                            <DataGridTextColumn Header="Deelnemers" Binding="{Binding Subscribers}" Width="90" />
+                            <DataGridTextColumn Header="Prijzen" Binding="{Binding TotalPrizePositions}" Width="65" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border x:Name="PrizeTableCard" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,4">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock x:Name="PrizeTableTitle" Text="Prijzentabel" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                <Button Content="Kopieer" Click="CopyUpcomingFlightInfo_Click" Padding="8,2" FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                            </DockPanel>
+                            <DataGrid x:Name="PrizeTableGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="40" MaxHeight="200" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Posities" Binding="{Binding RangeDisplay}" Width="100" />
+                                    <DataGridTextColumn Header="Aantal" Binding="{Binding Count}" Width="70" />
+                                    <DataGridTextColumn Header="Punten" Binding="{Binding PointsPerPosition}" Width="70" />
+                                    </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Completed Flights -->
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Voltooide vluchten" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBlock x:Name="CompletedFlightsStatusText" Text="Voltooide vluchten laden..." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <DataGrid x:Name="CompletedFlightsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="400" GridLinesVisibility="Horizontal" Margin="0,0,0,12" SelectionChanged="CompletedFlightsGrid_SelectionChanged" Visibility="Collapsed">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Datum" Binding="{Binding FlightDate, StringFormat={}{0:dd-MM-yyyy HH:mm}}" Width="140" />
+                            <DataGridTextColumn Header="Locatie" Binding="{Binding Location}" Width="120" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding FlightType}" Width="80" />
+                            <DataGridTextColumn Header="Afstand" Binding="{Binding DistanceKm, StringFormat={}{0} km}" Width="80" />
+                            <DataGridTextColumn Header="Cat." Binding="{Binding Category}" Width="65" />
+                            <DataGridTextColumn Header="Deelnemers" Binding="{Binding TotalParticipants}" Width="90" />
+                            <DataGridTextColumn Header="Eigen duiven" Binding="{Binding OwnPigeonCount}" Width="85" />
+                            <DataGridTextColumn Header="Beste pos." Binding="{Binding BestPosition}" Width="75" />
+                            <DataGridTextColumn Header="Totaal ptn" Binding="{Binding TotalPoints}" Width="75" />
+                            <DataGridTextColumn Header="Prijzen" Binding="{Binding TotalPrizePositions}" Width="65" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border x:Name="CompletedPrizeTableCard" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,4">
+                        <StackPanel>
+                            <TextBlock x:Name="CompletedPrizeTableTitle" Text="Prijzentabel" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <DataGrid x:Name="CompletedPrizeTableGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="40" MaxHeight="200" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Posities" Binding="{Binding RangeDisplay}" Width="100" />
+                                    <DataGridTextColumn Header="Aantal" Binding="{Binding Count}" Width="70" />
+                                    <DataGridTextColumn Header="Punten" Binding="{Binding PointsPerPosition}" Width="70" />
+                                    </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
                 <StackPanel>
                     <TextBlock Text="Afstandsprofiel per duif" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
@@ -35,6 +164,31 @@
                 </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Voederanalyse" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Vergelijkt de prestaties per voedermix om te zien welke mix het beste werkt." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <TextBlock x:Name="FoodAnalysisStatus" Text="" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,6" />
+                    <DataGrid x:Name="FoodAnalysisGrid" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="300" GridLinesVisibility="Horizontal" CellEditEnding="FoodAnalysisGrid_CellEditEnding">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Voedermix" Binding="{Binding Mix.Display}" IsReadOnly="True" Width="1.5*" />
+                            <DataGridTextColumn Header="# Vluchten" Binding="{Binding FlightCount}" IsReadOnly="True" Width="75" />
+                            <DataGridTextColumn Header="Gem. Top%" Binding="{Binding AvgPercentile, StringFormat={}{0:0.0}%}" IsReadOnly="True" Width="80" />
+                            <DataGridTextColumn Header="Gem. Punten" Binding="{Binding AvgPoints, StringFormat={}{0:0.0}}" IsReadOnly="True" Width="80" />
+                            <DataGridTextColumn Header="Gem. Snelheid" Binding="{Binding AvgSpeed, StringFormat={}{0:0.00}}" IsReadOnly="True" Width="90" />
+                            <DataGridTextColumn Header="Consist." Binding="{Binding Consistency, StringFormat={}{0:0.0}}" IsReadOnly="True" Width="65" />
+                            <DataGridTextColumn Header="Kort #" Binding="{Binding Short.FlightCount}" IsReadOnly="True" Width="50" />
+                            <DataGridTextColumn Header="Kort %" Binding="{Binding Short.AvgPercentile, StringFormat={}{0:0.0}}" IsReadOnly="True" Width="55" />
+                            <DataGridTextColumn Header="Mid #" Binding="{Binding Middle.FlightCount}" IsReadOnly="True" Width="50" />
+                            <DataGridTextColumn Header="Mid %" Binding="{Binding Middle.AvgPercentile, StringFormat={}{0:0.0}}" IsReadOnly="True" Width="55" />
+                            <DataGridTextColumn Header="Lang #" Binding="{Binding Long.FlightCount}" IsReadOnly="True" Width="50" />
+                            <DataGridTextColumn Header="Lang %" Binding="{Binding Long.AvgPercentile, StringFormat={}{0:0.0}}" IsReadOnly="True" Width="55" />
+                            <DataGridTextColumn Header="Opmerking" Binding="{Binding Comment, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="1.5*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
             <Border Style="{StaticResource CardBorderStyle}">
                 <StackPanel>
                     <DockPanel Margin="0,0,0,10">
@@ -57,6 +211,7 @@
                             <DataGridTextColumn Header="Afstand" Binding="{Binding FlightDistanceKm, StringFormat={}{0} km}" Width="80" />
                             <DataGridTextColumn Header="Cat." Binding="{Binding Category}" Width="65" />
                             <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                            <DataGridTextColumn Header="Voeder" Binding="{Binding FoodMixDisplay}" Width="160" />
                             <DataGridTextColumn Header="Positie" Binding="{Binding Position}" Width="60" />
                             <DataGridTextColumn Header="/ Totaal" Binding="{Binding TotalParticipants}" Width="65" />
                             <DataGridTextColumn Header="Top %" Binding="{Binding Percentile, StringFormat={}{0:0.0}%}" Width="65" />

@@ -20,14 +20,28 @@ public sealed class SyncEndpointCatalogTests
     }
 
     [Fact]
-    public void Standard_profile_returns_19_endpoints()
+    public void Standard_profile_without_season_returns_20_endpoints()
     {
         var endpoints = SyncEndpointCatalog.ForProfile(SyncProfile.Standard, 42);
 
-        endpoints.Should().HaveCount(19);
+        endpoints.Should().HaveCount(20);
         endpoints.Should().Contain(e => e.Path == "/api/weather");
-        endpoints.Should().Contain(e => e.Path == "/api/ranking");
         endpoints.Should().Contain(e => e.Path == "/api/flight");
+        endpoints.Should().NotContain(e => e.Path == "/api/ranking");
+    }
+
+    [Fact]
+    public void Standard_profile_with_season_includes_ranking_endpoints()
+    {
+        var endpoints = SyncEndpointCatalog.ForProfile(SyncProfile.Standard, 42, season: 1, department: 2);
+
+        endpoints.Should().HaveCount(24);
+        var rankingEndpoints = endpoints.Where(e => e.Path == "/api/ranking").ToList();
+        rankingEndpoints.Should().HaveCount(4);
+        rankingEndpoints.Should().Contain(e => e.Query!["type"] == "fanciers" && e.Query["rankingType"] == "regional");
+        rankingEndpoints.Should().Contain(e => e.Query!["type"] == "pigeons" && e.Query["rankingType"] == "regional");
+        rankingEndpoints.Should().Contain(e => e.Query!["type"] == "fanciers" && e.Query["rankingType"] == "national");
+        rankingEndpoints.Should().Contain(e => e.Query!["type"] == "pigeons" && e.Query["rankingType"] == "national");
     }
 
     [Fact]
@@ -36,7 +50,7 @@ public sealed class SyncEndpointCatalogTests
         var endpoints = SyncEndpointCatalog.ForProfile(SyncProfile.Standard, 42);
 
         var optionalEndpoints = endpoints.Where(e => e.Optional).ToList();
-        optionalEndpoints.Should().HaveCount(2);
+        optionalEndpoints.Should().HaveCount(4);
         optionalEndpoints.Should().Contain(e => e.Path == "/api/flight");
         optionalEndpoints.Should().Contain(e => e.Path == "/api/flight/live");
     }

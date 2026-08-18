@@ -29,7 +29,7 @@ public static class AgeCurveCalculator
         var peakSkillBucket = buckets.OrderByDescending(b => b.AvgTotalSkill).First();
         var peakPerformanceBucket = buckets
             .Where(b => b.AvgPercentile.HasValue)
-            .OrderBy(b => b.AvgPercentile)
+            .OrderByDescending(b => b.AvgPercentile)
             .FirstOrDefault();
 
         var phaseDisplay = BuildPhaseDisplay(buckets, peakSkillBucket.AgeMonths);
@@ -42,6 +42,8 @@ public static class AgeCurveCalculator
             phaseDisplay);
     }
 
+    public static string FormatAge(int months) => $"{months / 12}j {months % 12}m";
+
     private static string? BuildPhaseDisplay(IReadOnlyList<AgeBucket> buckets, int peakAge)
     {
         if (buckets.Count < 2)
@@ -51,11 +53,11 @@ public static class AgeCurveCalculator
         var lastAge = buckets[^1].AgeMonths;
 
         if (lastAge <= peakAge)
-            return $"Groei ({firstAge}-{lastAge}m)";
+            return $"Groei ({FormatAge(firstAge)}-{FormatAge(lastAge)})";
 
         if (firstAge >= peakAge)
-            return $"Daling ({firstAge}-{lastAge}m)";
+            return $"Daling ({FormatAge(firstAge)}-{FormatAge(lastAge)})";
 
-        return $"Groei ({firstAge}-{peakAge}m) → Piek ({peakAge}m) → Daling ({peakAge}-{lastAge}m)";
+        return $"Groei ({FormatAge(firstAge)}-{FormatAge(peakAge)}) → Piek ({FormatAge(peakAge)}) → Daling ({FormatAge(peakAge)}-{FormatAge(lastAge)})";
     }
 }

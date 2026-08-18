@@ -38,6 +38,8 @@
                 <Button x:Name="HistoryNavButton" Content="Duivengeschiedenis" Style="{StaticResource NavigationButtonStyle}" Click="OpenPigeonHistory_Click" />
                 <Button x:Name="TransferNavButton" Content="Transfers" Style="{StaticResource NavigationButtonStyle}" Click="OpenTransfers_Click" />
                 <Button x:Name="FlightsNavButton" Content="Vluchten" Style="{StaticResource NavigationButtonStyle}" Click="OpenFlights_Click" />
+                <Button x:Name="RankingNavButton" Content="Klassement" Style="{StaticResource NavigationButtonStyle}" Click="OpenRanking_Click" />
+                <Button x:Name="SponsorNavButton" Content="Sponsoring" Style="{StaticResource NavigationButtonStyle}" Click="OpenSponsors_Click" />
                 <Button x:Name="DataNavButton" Content="Gegevens" Style="{StaticResource NavigationButtonStyle}" Click="OpenData_Click" />
             </StackPanel>
         </Border>
@@ -64,8 +66,8 @@
                             <Border Style="{StaticResource CardBorderStyle}"><StackPanel><TextBlock Text="Seizoen" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="SeasonText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,0" /></StackPanel></Border>
                         </UniformGrid>
 
-                        <TabControl Style="{StaticResource AppTabControlStyle}">
-                            <TabItem Header="Hoköverzicht" Style="{StaticResource AppTabItemStyle}">
+                        <TabControl Style="{StaticResource AppTabControlStyle}" SelectionChanged="DashboardTabControl_SelectionChanged">
+                            <TabItem Header="Hok Overzicht" Style="{StaticResource AppTabItemStyle}">
                                 <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
                                     <StackPanel>
                                         <DockPanel>
@@ -120,11 +122,64 @@
                                 </Border>
                             </TabItem>
 
+                            <TabItem Header="Duivenoverzicht (historisch)" Style="{StaticResource AppTabItemStyle}">
+                                <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Left">
+                                                <TextBlock Text="Historisch overzicht" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" />
+                                                <TextBlock x:Name="OverviewMessageText" Text="Selecteer een melker en voer een sync uit om historische data te laden." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <Button DockPanel.Dock="Right" Content="Historisch overzicht verversen" Style="{StaticResource SecondaryButtonStyle}" Click="RefreshOverview_Click" VerticalAlignment="Top" />
+                                        </DockPanel>
+
+                                        <UniformGrid Columns="4" Margin="0,14,0,10">
+                                            <StackPanel><TextBlock Text="Duiven" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="OverviewPigeonCountText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
+                                            <StackPanel><TextBlock Text="Totaal waarnemingen" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="OverviewObservationCountText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
+                                            <StackPanel><TextBlock Text="Oudste momentopname" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="OverviewOldestText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+                                            <StackPanel><TextBlock Text="Nieuwste momentopname" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="OverviewNewestText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+                                        </UniformGrid>
+
+                                        <TextBox x:Name="OverviewSearchBox" Style="{StaticResource SearchTextBoxStyle}" Margin="0,0,0,10" TextChanged="OverviewSearchBox_TextChanged" />
+
+                                        <DataGrid x:Name="OverviewPigeonGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="180" MaxHeight="600" GridLinesVisibility="Horizontal">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Duif" Binding="{Binding DisplayName}" Width="1.5*" />
+                                                <DataGridTextColumn Header="Gesl" Binding="{Binding Sex}" Width="50" />
+                                                <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age}" Width="70" />
+                                                <DataGridTextColumn Header="Ras" Binding="{Binding Breed}" Width="80" />
+                                                <DataGridTextColumn Header="&#x2665;" Binding="{Binding BreedingMark}" Width="30" />
+                                                <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="65" />
+                                                <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="55" />
+                                                <DataGridTextColumn Header="Mid" Binding="{Binding MediumDisplay}" Width="55" />
+                                                <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="55" />
+                                                <DataGridTextColumn Header="Vorm" Binding="{Binding FormDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Ervaring" Binding="{Binding ExperienceDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Conditie" Binding="{Binding StaminaDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Snelheid" Binding="{Binding SpeedDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Navigatie" Binding="{Binding NavigationDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Techniek" Binding="{Binding TechniqueDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Aerodyn." Binding="{Binding AerodynamicsDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Intell." Binding="{Binding IntelligenceDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Libido" Binding="{Binding LibidoDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Nachtzicht" Binding="{Binding NightvisionDisplay}" Width="60" />
+                                                <DataGridTextColumn Header="Vaard &#x0394;" Binding="{Binding SkillChange, StringFormat={}{0:+0;-0;—}}" Width="65" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </StackPanel>
+                                </Border>
+                            </TabItem>
+
                             <TabItem Header="Fokanalyse" Style="{StaticResource AppTabItemStyle}">
                                 <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
                                     <StackPanel>
-                                        <TextBlock Text="Fokanalyse" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" />
-                                        <TextBlock x:Name="BreedingStatusText" Text="Fokgegevens worden geladen..." Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0" />
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Left">
+                                                <TextBlock Text="Fokanalyse" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" />
+                                                <TextBlock x:Name="BreedingStatusText" Text="Klik op dit tabblad om fokgegevens te laden." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <Button DockPanel.Dock="Right" Content="Fokanalyse verversen" Style="{StaticResource SecondaryButtonStyle}" Click="RefreshBreeding_Click" VerticalAlignment="Top" />
+                                        </DockPanel>
                                         <UniformGrid Columns="3" Margin="0,10,0,10">
                                             <StackPanel><TextBlock Text="Koppels geanalyseerd" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="BreedingPairCountText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
                                             <StackPanel><TextBlock Text="Gem. inteeltcoëfficiënt" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="FlockInbreedingText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
@@ -136,7 +191,7 @@
                                                 <DataGridTextColumn Header="Doffer" Binding="{Binding PigeonName}" Width="1.2*" />
                                                 <DataGridTextColumn Header="Duivin" Binding="{Binding PartnerName}" Width="1.2*" />
                                                 <DataGridTextColumn Header="Nakomelingen" Binding="{Binding OffspringCount}" Width="100" />
-                                                <DataGridTextColumn Header="Gem. nakom. skill" Binding="{Binding AvgOffspringTotalSkill, StringFormat=N1}" Width="120" />
+                                                <DataGridTextColumn Header="Gem. nakom. skill" Binding="{Binding AvgOffspringTotalSkill, StringFormat=N1, TargetNullValue=—}" Width="120" />
                                                 <DataGridTextColumn Header="Gem. ouder skill" Binding="{Binding ParentAvgTotalSkill, StringFormat=N1}" Width="110" />
                                                 <DataGridTextColumn Header="Delta" Binding="{Binding SkillDeltaDisplay}" Width="90" />
                                             </DataGrid.Columns>
@@ -162,6 +217,8 @@
             <Border x:Name="HistoryPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="HistoryHost" /></Border>
             <Border x:Name="TransferPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="TransferHost" /></Border>
             <Border x:Name="FlightsPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="FlightsHost" /></Border>
+            <Border x:Name="RankingPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="RankingHost" /></Border>
+            <Border x:Name="SponsorPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="SponsorHost" /></Border>
             <Border x:Name="DataPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="DataHost" /></Border>
         </Grid>
     </Grid>

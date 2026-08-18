@@ -122,7 +122,7 @@
                                   HeadersVisibility="Column" MaxHeight="250" GridLinesVisibility="Horizontal"
                                   Visibility="Collapsed">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Leeftijd (m)" Binding="{Binding AgeMonths}" Width="90" />
+                                <DataGridTextColumn Header="Leeftijd" Binding="{Binding AgeDisplay}" Width="90" />
                                 <DataGridTextColumn Header="Gem. vaardigheid" Binding="{Binding AvgTotalSkill, StringFormat={}{0:0.0}}" Width="120" />
                                 <DataGridTextColumn Header="Gem. percentiel" Binding="{Binding AvgPercentile, StringFormat={}{0:0.0}%}" Width="110" />
                                 <DataGridTextColumn Header="Waarnemingen" Binding="{Binding ObservationCount}" Width="100" />

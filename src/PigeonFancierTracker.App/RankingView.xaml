@@ -1,0 +1,101 @@
+<UserControl x:Class="PigeonFancierTracker.App.RankingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+            <TextBlock x:Name="RankingStatusText" Text="Klassement laden..." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,12" />
+
+            <TabControl Style="{StaticResource AppTabControlStyle}" SelectionChanged="RankingTabControl_SelectionChanged">
+                <!-- Regional Fanciers -->
+                <TabItem Header="Regionaal Melkers" Style="{StaticResource AppTabItemStyle}">
+                    <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
+                        <StackPanel>
+                            <TextBlock Text="Regionaal klassement — Melkers" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                            <TextBlock x:Name="RegionalFancierStatusText" Text="" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,6" />
+                            <DataGrid x:Name="RegionalFancierGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="100" MaxHeight="500" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="50" />
+                                    <DataGridTextColumn Header="Melker" Binding="{Binding Name}" Width="1.5*" />
+                                    <DataGridTextColumn Header="Punten" Binding="{Binding Points}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+
+                <!-- Regional Pigeons -->
+                <TabItem Header="Regionaal Duiven" Style="{StaticResource AppTabItemStyle}">
+                    <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
+                        <StackPanel>
+                            <TextBlock Text="Regionaal klassement — Duiven" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                            <DataGrid x:Name="RegionalPigeonGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="100" MaxHeight="500" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="50" />
+                                    <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                                    <DataGridTextColumn Header="Melker" Binding="{Binding FancierName}" Width="1*" />
+                                    <DataGridTextColumn Header="Punten" Binding="{Binding Points}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+
+                <!-- National Fanciers -->
+                <TabItem Header="Nationaal Melkers" Style="{StaticResource AppTabItemStyle}">
+                    <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
+                        <StackPanel>
+                            <TextBlock Text="Nationaal klassement — Melkers" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                            <DataGrid x:Name="NationalFancierGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="100" MaxHeight="500" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="50" />
+                                    <DataGridTextColumn Header="Melker" Binding="{Binding Name}" Width="1.5*" />
+                                    <DataGridTextColumn Header="Punten" Binding="{Binding Points}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+
+                <!-- National Pigeons -->
+                <TabItem Header="Nationaal Duiven" Style="{StaticResource AppTabItemStyle}">
+                    <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
+                        <StackPanel>
+                            <TextBlock Text="Nationaal klassement — Duiven" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                            <DataGrid x:Name="NationalPigeonGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="100" MaxHeight="500" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="50" />
+                                    <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                                    <DataGridTextColumn Header="Melker" Binding="{Binding FancierName}" Width="1*" />
+                                    <DataGridTextColumn Header="Punten" Binding="{Binding Points}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+
+                <!-- Predicted Regional Ranking -->
+                <TabItem x:Name="PredictedTab" Header="Voorspeld Regionaal" Style="{StaticResource AppTabItemStyle}" Visibility="Collapsed">
+                    <Border Style="{StaticResource CardBorderStyle}" BorderThickness="1" CornerRadius="0,10,10,10">
+                        <StackPanel>
+                            <TextBlock Text="Voorspeld regionaal klassement" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <TextBlock x:Name="PredictedStatusText" Text="Gebaseerd op de huidige stand van de actieve regionale vlucht." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                            <DataGrid x:Name="PredictedRankingGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="100" MaxHeight="500" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="50" />
+                                    <DataGridTextColumn Header="Melker" Binding="{Binding Name}" Width="1.5*" />
+                                    <DataGridTextColumn Header="Huidig" Binding="{Binding CurrentPoints}" Width="70" />
+                                    <DataGridTextColumn Header="Voorspeld" Binding="{Binding PredictedPoints}" Width="80" />
+                                    <DataGridTextColumn Header="+/-" Binding="{Binding PointsDelta, StringFormat={}{0:+0;-0;0}}" Width="55" />
+                                    <DataGridTextColumn Header="Pos. delta" Binding="{Binding PositionDelta, StringFormat={}{0:+0;-0;—}}" Width="75" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+            </TabControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

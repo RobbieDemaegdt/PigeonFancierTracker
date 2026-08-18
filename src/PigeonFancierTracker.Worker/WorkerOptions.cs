@@ -6,6 +6,7 @@ public sealed class WorkerOptions
     public string Password { get; set; } = "";
     public int FancierId { get; set; }
     public int SyncIntervalMinutes { get; set; } = 30;
+    public string AppDataDirectory { get; set; } = "";
     public bool AutoBidEnabled { get; set; }
     public List<AutoBidRule> AutoBidRules { get; set; } = [];
 
@@ -17,6 +18,7 @@ public sealed class WorkerOptions
     public decimal MinBalanceAlert { get; set; } = 1000m;
     public bool AutoTrainEnabled { get; set; } = true;
     public bool AutoLoftEnabled { get; set; } = true;
+    public bool AutoBarnUpgradeEnabled { get; set; }
     public bool AutoBreedEnabled { get; set; }
     public bool DryRun { get; set; }
 }

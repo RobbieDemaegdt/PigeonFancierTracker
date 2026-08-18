@@ -38,9 +38,13 @@ public sealed class PedigreeDataFetcher(
                 return DeserializeOffspring(response.Body);
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch
         {
-            // Fall back to stale cache on failure
+            // Fall back to stale cache on network/auth failure
         }
 
         return cached is not null ? DeserializeOffspring(cached.OffspringJson) : [];
@@ -69,9 +73,13 @@ public sealed class PedigreeDataFetcher(
                 return DeserializePedigree(response.Body);
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch
         {
-            // Fall back to stale cache on failure
+            // Fall back to stale cache on network/auth failure
         }
 
         return cached is not null ? DeserializePedigree(cached.PedigreeJson) : null;

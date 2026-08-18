@@ -15,6 +15,7 @@ public sealed class HttpClientWriteTransport : IAuthenticatedWriteTransport
         new(@"^/api/flight/\d+/subscriptions$", RegexOptions.Compiled),
         new(@"^/api/fancier/items$", RegexOptions.Compiled),
         new(@"^/api/couple$", RegexOptions.Compiled),
+        new(@"^/api/barn$", RegexOptions.Compiled),
     ];
     private static readonly Regex[] AllowedPutPaths =
     [

@@ -16,7 +16,7 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
 
         progress?.Report(new DataPortProgress("Manifest controleren...", 0));
         var manifest = await ReadJsonEntryAsync<BackupManifest>(archive, "manifest.json", cancellationToken);
-        if (manifest is null || manifest.FormatVersion > 2)
+        if (manifest is null || manifest.FormatVersion > 4)
         {
             return new DataPortResult(false, "Ongeldig of niet-ondersteund back-upbestand.", 0, 0, 0, 0);
         }
@@ -39,6 +39,12 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
         var flightResults = manifest.FormatVersion >= 2
             ? await ReadJsonEntryAsync<List<FlightResultEntity>>(archive, "flight_results.json", cancellationToken) ?? []
             : [];
+        var foodSnapshots = manifest.FormatVersion >= 3
+            ? await ReadJsonEntryAsync<List<FoodDistributionSnapshotEntity>>(archive, "food_distribution_snapshots.json", cancellationToken) ?? []
+            : [];
+        var sponsorSnapshots = manifest.FormatVersion >= 4
+            ? await ReadJsonEntryAsync<List<SponsorSnapshotEntity>>(archive, "sponsor_snapshots.json", cancellationToken) ?? []
+            : [];
 
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -55,13 +61,19 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
         progress?.Report(new DataPortProgress("Vluchten importeren...", 0.90));
         int flightCount = await MergeFlightsAsync(db, flights, cancellationToken);
 
-        progress?.Report(new DataPortProgress("Vluchtresultaten importeren...", 0.95));
+        progress?.Report(new DataPortProgress("Vluchtresultaten importeren...", 0.92));
         int flightResultCount = await MergeFlightResultsAsync(db, flightResults, cancellationToken);
+
+        progress?.Report(new DataPortProgress("Voedersnapshots importeren...", 0.94));
+        int foodSnapshotCount = await MergeFoodSnapshotsAsync(db, foodSnapshots, cancellationToken);
+
+        progress?.Report(new DataPortProgress("Sponsorsnapshots importeren...", 0.97));
+        int sponsorSnapshotCount = await MergeSponsorSnapshotsAsync(db, sponsorSnapshots, cancellationToken);
 
         progress?.Report(new DataPortProgress("Import voltooid", 1.0));
 
-        var total = snapshotCount + syncRunCount + syncRunItemCount + transferCount + flightCount + flightResultCount;
-        return new DataPortResult(true, $"{total:N0} nieuwe records geïmporteerd.", snapshotCount, syncRunCount, syncRunItemCount, transferCount, flightCount, flightResultCount);
+        var total = snapshotCount + syncRunCount + syncRunItemCount + transferCount + flightCount + flightResultCount + foodSnapshotCount + sponsorSnapshotCount;
+        return new DataPortResult(true, $"{total:N0} nieuwe records geïmporteerd.", snapshotCount, syncRunCount, syncRunItemCount, transferCount, flightCount, flightResultCount, foodSnapshotCount, sponsorSnapshotCount);
     }
 
     private static async Task<int> MergeSnapshotsAsync(AppDbContext db, List<RawApiSnapshotEntity> incoming, CancellationToken ct)
@@ -198,6 +210,57 @@ public sealed class DataImporter(IDbContextFactory<AppDbContext> dbContextFactor
                 {
                     item.Id = 0;
                     db.FlightResults.Add(item);
+                    added++;
+                }
+            }
+
+            await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+
+        return added;
+    }
+
+    private static async Task<int> MergeFoodSnapshotsAsync(AppDbContext db, List<FoodDistributionSnapshotEntity> incoming, CancellationToken ct)
+    {
+        int added = 0;
+        foreach (var batch in Chunk(incoming, BatchSize))
+        {
+            foreach (var item in batch)
+            {
+                bool exists = await db.FoodDistributionSnapshots.AnyAsync(x =>
+                    x.SelectedFancierId == item.SelectedFancierId &&
+                    x.CapturedAtUtc == item.CapturedAtUtc, ct);
+                if (!exists)
+                {
+                    item.Id = 0;
+                    db.FoodDistributionSnapshots.Add(item);
+                    added++;
+                }
+            }
+
+            await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+
+        return added;
+    }
+
+    private static async Task<int> MergeSponsorSnapshotsAsync(AppDbContext db, List<SponsorSnapshotEntity> incoming, CancellationToken ct)
+    {
+        int added = 0;
+        foreach (var batch in Chunk(incoming, BatchSize))
+        {
+            foreach (var item in batch)
+            {
+                bool exists = await db.SponsorSnapshots.AnyAsync(x =>
+                    x.SelectedFancierId == item.SelectedFancierId &&
+                    x.CapturedAtUtc == item.CapturedAtUtc &&
+                    x.ContractId == item.ContractId, ct);
+                if (!exists)
+                {
+                    item.Id = 0;
+                    db.SponsorSnapshots.Add(item);
                     added++;
                 }
             }

@@ -5,6 +5,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using PigeonFancierTracker.Core.Contracts;
+using PigeonFancierTracker.Core.Domain;
 
 namespace PigeonFancierTracker.App;
 
@@ -13,16 +14,22 @@ public partial class TransferView : UserControl
     private readonly ITransferDataReader transferDataReader;
     private readonly ISessionStateService sessionState;
     private readonly IAutoBidService autoBidService;
+    private readonly IMarketAnalysisReader marketAnalysisReader;
+    private readonly ISyncCoordinator syncCoordinator;
 
     public TransferView(
         ITransferDataReader transferDataReader,
         ISessionStateService sessionState,
-        IAutoBidService autoBidService)
+        IAutoBidService autoBidService,
+        IMarketAnalysisReader marketAnalysisReader,
+        ISyncCoordinator syncCoordinator)
     {
         InitializeComponent();
         this.transferDataReader = transferDataReader;
         this.sessionState = sessionState;
         this.autoBidService = autoBidService;
+        this.marketAnalysisReader = marketAnalysisReader;
+        this.syncCoordinator = syncCoordinator;
         autoBidService.EntryChanged += AutoBidService_EntryChanged;
         autoBidService.LogMessage += AutoBidService_LogMessage;
         ActiveDetailPanel.CloseRequested += (_, _) => ActiveTransferGrid.SelectedItem = null;
@@ -60,6 +67,17 @@ public partial class TransferView : UserControl
 
             PopulateMarketAnalysis(data);
 
+            try
+            {
+                var analysis = await marketAnalysisReader.GetMarketAnalysisAsync(selectedFancierId, data);
+                PopulateMarketAnalysisExtended(analysis);
+            }
+            catch
+            {
+                BuyRecommendationCountText.Text = "Marktanalyse kon niet worden berekend.";
+                SellEstimateCountText.Text = "Verkoopwaarde kon niet worden berekend.";
+            }
+
             var total = data.ActiveTransfers.Count + data.CompletedTransfers.Count;
             TransferStatusText.Text = total == 0
                 ? "Geen transfergegevens beschikbaar. Voer een sync uit om transferaanbiedingen vast te leggen."
@@ -73,6 +91,25 @@ public partial class TransferView : UserControl
         }
 
         RefreshAutoBidGrid();
+    }
+
+    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshButton.IsEnabled = false;
+        try
+        {
+            TransferStatusText.Text = "Gegevens ophalen van server…";
+            await syncCoordinator.SyncAsync(SyncProfile.Quick);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            TransferStatusText.Text = $"Vernieuwen mislukt: {ex.Message}";
+        }
+        finally
+        {
+            RefreshButton.IsEnabled = true;
+        }
     }
 
     private void ActiveTransferGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -172,6 +209,38 @@ public partial class TransferView : UserControl
                 return found;
         }
         return null;
+    }
+
+    private void PopulateMarketAnalysisExtended(MarketAnalysisPageData analysis)
+    {
+        MarketKoopjeCountText.Text = analysis.KoopjeCount.ToString();
+        MarketTeDuurCountText.Text = analysis.TeDuurCount.ToString();
+        MarketAvgSkillPerEuroText.Text = analysis.AvgSkillPerEuro > 0
+            ? $"{analysis.AvgSkillPerEuro:0.00}"
+            : "—";
+        MarketTopBargainText.Text = analysis.TopBargainName ?? "—";
+
+        if (analysis.BuyRecommendations.Count > 0)
+        {
+            BuyRecommendationGrid.ItemsSource = analysis.BuyRecommendations;
+            BuyRecommendationCountText.Text = $"{analysis.BuyRecommendations.Count} duif(en) geanalyseerd.";
+        }
+        else
+        {
+            BuyRecommendationGrid.ItemsSource = null;
+            BuyRecommendationCountText.Text = "Geen actieve transfers om te analyseren of onvoldoende verkoophistorie.";
+        }
+
+        if (analysis.SellEstimates.Count > 0)
+        {
+            SellEstimateGrid.ItemsSource = analysis.SellEstimates;
+            SellEstimateCountText.Text = $"{analysis.SellEstimates.Count} eigen duif(en) gewaardeerd.";
+        }
+        else
+        {
+            SellEstimateGrid.ItemsSource = null;
+            SellEstimateCountText.Text = "Geen verkoopwaarde beschikbaar — onvoldoende verkoophistorie.";
+        }
     }
 
     private void PopulateMarketAnalysis(TransferPageData data)

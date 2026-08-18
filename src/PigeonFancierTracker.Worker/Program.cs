@@ -16,7 +16,11 @@ builder.Services.AddPigeonFancierTrackerCore(databasePath);
 builder.Services.AddSingleton<ICredentialStore, EnvironmentCredentialStore>();
 builder.Services.AddSingleton<ISettingsService>(_ => new SettingsService(appDataDirectory));
 
-builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
+builder.Services.Configure<WorkerOptions>(opts =>
+{
+    builder.Configuration.GetSection("Worker").Bind(opts);
+    opts.AppDataDirectory = appDataDirectory;
+});
 builder.Services.AddHostedService<FancierWorkerService>();
 
 var host = builder.Build();

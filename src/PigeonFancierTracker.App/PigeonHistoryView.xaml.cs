@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using PigeonFancierTracker.Core.Analytics;
 using PigeonFancierTracker.Core.Contracts;
 
 namespace PigeonFancierTracker.App;
@@ -87,8 +88,8 @@ public partial class PigeonHistoryView : UserControl
     private void UpdateSummary(PigeonHistoryData data)
     {
         var selected = data.SelectedPigeon;
-        var first = data.Points.FirstOrDefault();
-        var latest = data.Points.LastOrDefault();
+        var latest = data.Points.FirstOrDefault();
+        var first = data.Points.LastOrDefault();
 
         PigeonTitleText.Text = selected is null
             ? "Selecteer een duif"
@@ -116,8 +117,8 @@ public partial class PigeonHistoryView : UserControl
             AgeCurveExpander.Visibility = Visibility.Visible;
             AgeCurveExpander.IsExpanded = true;
 
-            PeakSkillAgeText.Text = curve.PeakSkillAge.HasValue ? $"{curve.PeakSkillAge}m" : "—";
-            PeakPerformanceAgeText.Text = curve.PeakPerformanceAge.HasValue ? $"{curve.PeakPerformanceAge}m" : "—";
+            PeakSkillAgeText.Text = curve.PeakSkillAge.HasValue ? AgeCurveCalculator.FormatAge(curve.PeakSkillAge.Value) : "—";
+            PeakPerformanceAgeText.Text = curve.PeakPerformanceAge.HasValue ? AgeCurveCalculator.FormatAge(curve.PeakPerformanceAge.Value) : "—";
             PeakTotalSkillText.Text = curve.PeakTotalSkill.HasValue ? $"{curve.PeakTotalSkill:0.0}" : "—";
             PhaseDisplayText.Text = curve.PhaseDisplay ?? "—";
             AgeBucketGrid.ItemsSource = curve.Buckets;

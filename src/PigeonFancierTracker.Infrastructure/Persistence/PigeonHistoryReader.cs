@@ -79,7 +79,7 @@ public sealed class PigeonHistoryReader(IDbContextFactory<AppDbContext> contextF
                 .ToArray();
 
         var deduplicated = DeduplicatePoints(rawPoints);
-        var points = AddDeltaIndicators(deduplicated);
+        var points = AddDeltaIndicators(deduplicated).Reverse().ToArray();
 
         AgeCurveResult? ageCurve = null;
         DiseaseImpactResult? diseaseImpact = null;
@@ -280,9 +280,9 @@ public sealed class PigeonHistoryReader(IDbContextFactory<AppDbContext> contextF
                 var ageAtRace = (int)((race.Start - birthDate.Value.DateTime).TotalDays / 30.44);
                 if (ageAtRace < 0) continue;
 
-                var percentile = race.TotalParticipants > 0
-                    ? (double)race.Position / race.TotalParticipants * 100
-                    : 0;
+                var percentile = race.TotalParticipants > 1
+                    ? (1.0 - (double)(race.Position - 1) / (race.TotalParticipants - 1)) * 100
+                    : 100.0;
 
                 if (!racePercentileByMonth.TryGetValue(ageAtRace, out var list))
                 {

@@ -206,6 +206,18 @@ public sealed class FlightResultIngester(
                 });
             }
 
+            var userDistances = resultsPage.Items
+                .Where(r => fancierIds.Contains(r.FancierId) && r.Distance > 0)
+                .Select(r => r.Distance)
+                .ToList();
+
+            if (userDistances.Count > 0)
+            {
+                var avgDistance = (int)Math.Round(userDistances.Average());
+                flight.DistanceKm = avgDistance;
+                flight.DistanceCategory = DistanceProfileCalculator.Classify(avgDistance).ToString();
+            }
+
             flight.ResultsFetchedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
         }

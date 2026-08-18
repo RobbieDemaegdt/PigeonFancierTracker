@@ -47,6 +47,7 @@ public sealed class LoftManager(
 
     public async Task<LoftManagementPlan> BuildLoftPlanAsync(
         int fancierId,
+        bool barnUpgradeEnabled = false,
         CancellationToken cancellationToken = default)
     {
         var skipped = new List<string>();
@@ -55,7 +56,7 @@ public sealed class LoftManager(
         if (fancier is null)
         {
             skipped.Add("No fancier snapshot available");
-            return new LoftManagementPlan(null, null, 0, 0, 0, null, skipped);
+            return new LoftManagementPlan(null, null, null, 0, 0, 0, null, skipped);
         }
 
         var pen = fancier.Pen;
@@ -72,7 +73,7 @@ public sealed class LoftManager(
             if (pen?.Tier is not null)
                 logger.LogWarning("Unknown loft tier '{Tier}', cannot determine capacity", pen.Tier);
             skipped.Add($"Unknown loft tier: {pen?.Tier ?? "(null)"}");
-            return new LoftManagementPlan(null, null, 0, pigeonCount, 0, dirt, skipped);
+            return new LoftManagementPlan(null, null, null, 0, pigeonCount, 0, dirt, skipped);
         }
 
         var occupancyPercent = capacity > 0
@@ -123,9 +124,23 @@ public sealed class LoftManager(
             skipped.Add($"Pen stock sufficient: {penStock} pens for {pigeonCount} pigeons");
         }
 
+        BarnUpgradeAction? barnUpgradeAction = null;
+        if (barnUpgradeEnabled && occupancyPercent >= 80)
+        {
+            barnUpgradeAction = new BarnUpgradeAction(
+                pen.Tier!,
+                capacity,
+                $"High occupancy ({occupancyPercent:F0}%) — {pigeonCount}/{capacity} slots used");
+        }
+        else if (barnUpgradeEnabled)
+        {
+            skipped.Add($"Barn upgrade not needed — occupancy {occupancyPercent:F0}% (threshold 80%)");
+        }
+
         return new LoftManagementPlan(
             cleanAction,
             penPurchaseAction,
+            barnUpgradeAction,
             capacity,
             pigeonCount,
             occupancyPercent,
@@ -142,6 +157,9 @@ public sealed class LoftManager(
 
         if (plan.PenPurchaseAction is { } penAction)
             await ExecutePenPurchaseAsync(penAction, cancellationToken);
+
+        if (plan.BarnUpgrade is not null)
+            await ExecuteBarnUpgradeAsync(cancellationToken);
     }
 
     private async Task ExecuteCleanAsync(CancellationToken ct)
@@ -154,6 +172,37 @@ public sealed class LoftManager(
         else
             logger.LogWarning("Loft cleaning failed — HTTP {Status}: {Body}",
                 response.StatusCode, response.Body);
+    }
+
+    private async Task ExecuteBarnUpgradeAsync(CancellationToken ct)
+    {
+        logger.LogInformation("Upgrading barn");
+        var response = await writeTransport.PostJsonAsync("/api/barn", "{}", ct);
+
+        if (response.StatusCode >= 200 && response.StatusCode < 300)
+        {
+            try
+            {
+                var result = JsonSerializer.Deserialize<BarnStatusDto>(response.Body, JsonOptions);
+                if (result?.NextTier is not null)
+                    logger.LogInformation(
+                        "Barn upgraded to {Tier} (size={Size}). Next tier: {NextTier} (cost={Cost})",
+                        result.Barn?.Tier, result.Barn?.Size, result.NextTier.Tier, result.NextTier.Price);
+                else
+                    logger.LogInformation(
+                        "Barn upgraded to {Tier} (size={Size}). No further upgrades available",
+                        result?.Barn?.Tier, result?.Barn?.Size);
+            }
+            catch (JsonException)
+            {
+                logger.LogInformation("Barn upgrade completed (could not parse response)");
+            }
+        }
+        else
+        {
+            logger.LogWarning("Barn upgrade failed — HTTP {Status}: {Body}",
+                response.StatusCode, response.Body);
+        }
     }
 
     private async Task ExecutePenPurchaseAsync(LoftPenPurchaseAction penAction, CancellationToken ct)

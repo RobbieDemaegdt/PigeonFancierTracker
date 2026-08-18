@@ -12,6 +12,7 @@ namespace PigeonFancierTracker.Infrastructure.Management;
 public sealed class TrainingManager(
     IDbContextFactory<AppDbContext> contextFactory,
     IAuthenticatedWriteTransport writeTransport,
+    ISessionStateService sessionState,
     ILogger<TrainingManager> logger) : ITrainingManager
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -84,7 +85,9 @@ public sealed class TrainingManager(
             best.Value.Score,
             best.Value.Reason);
 
-        return new TrainingManagementPlan(null, recommendation, skillAnalysis, skipped);
+        var currentFocus = ParseTrainingType(sessionState.Current.SelectedFancier?.TrainingType);
+
+        return new TrainingManagementPlan(currentFocus, recommendation, skillAnalysis, skipped);
     }
 
     public async Task ExecuteTrainingPlanAsync(
@@ -245,6 +248,15 @@ public sealed class TrainingManager(
             return [];
         }
     }
+
+    private static TrainingFocus? ParseTrainingType(string? trainingType) =>
+        trainingType?.ToLowerInvariant() switch
+        {
+            "general" => TrainingFocus.General,
+            "conditional" => TrainingFocus.Conditional,
+            "strategic" => TrainingFocus.Strategic,
+            _ => null,
+        };
 
     private async Task<IReadOnlyList<FlightDto>> ReadUpcomingFlightsAsync(int fancierId, CancellationToken ct)
     {

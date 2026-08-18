@@ -146,7 +146,7 @@ The Dashboard distinguishes a network sync from **Refresh local data**. During s
 
 ## Headless worker (Docker)
 
-The headless worker runs as an autonomous pigeon fancier — its own account operating 24/7 without human intervention. It performs login, periodic data synchronization, flight result ingestion, and automated bidding on transfers.
+The headless worker runs as an autonomous pigeon fancier — its own account operating 24/7. It performs login, periodic data synchronization, flight result ingestion, and autonomous management of food, training, flights, breeding, and loft maintenance. It defaults to **dry-run (advisor) mode**, where it analyzes the game state and reports what it would do without taking any actions.
 
 ### Requirements
 
@@ -206,9 +206,16 @@ All configuration is provided via the `Worker` section in `appsettings.json` or 
 | `Worker:SyncIntervalMinutes` | `Worker__SyncIntervalMinutes` | `30` | Minutes between sync cycles |
 | `Worker:AutoBidEnabled` | `Worker__AutoBidEnabled` | `false` | Enable the auto-bid polling loop |
 | `Worker:AutoBidRules` | `Worker__AutoBidRules__0__*` | `[]` | List of auto-bid rules (see below) |
-| `Worker:ManagementEnabled` | `Worker__ManagementEnabled` | `false` | Enable autonomous fancier management |
+| `Worker:ManagementEnabled` | `Worker__ManagementEnabled` | `true` | Enable autonomous fancier management |
 | `Worker:AutoFlightEnabled` | `Worker__AutoFlightEnabled` | `true` | Auto-enroll pigeons in flights (requires management) |
-| `Worker:DryRun` | `Worker__DryRun` | `true` | Log intended actions without executing them |
+| `Worker:AutoFeedEnabled` | `Worker__AutoFeedEnabled` | `true` | Auto-purchase food and adjust distribution (requires management) |
+| `Worker:MinFoodDaysReserve` | `Worker__MinFoodDaysReserve` | `7` | Minimum food days before purchasing more |
+| `Worker:AutoFinanceGuardEnabled` | `Worker__AutoFinanceGuardEnabled` | `true` | Check balance before spending (requires management) |
+| `Worker:MinBalanceAlert` | `Worker__MinBalanceAlert` | `1000` | Balance threshold that blocks spending |
+| `Worker:AutoTrainEnabled` | `Worker__AutoTrainEnabled` | `true` | Auto-set training focus (requires management) |
+| `Worker:AutoLoftEnabled` | `Worker__AutoLoftEnabled` | `true` | Auto-clean loft and buy pens (requires management) |
+| `Worker:AutoBreedEnabled` | `Worker__AutoBreedEnabled` | `false` | Auto-manage breeding pairs (requires management) |
+| `Worker:DryRun` | `Worker__DryRun` | `true` | Log intended actions without executing them (advisor mode) |
 
 ### Auto-bid rules
 
@@ -238,6 +245,139 @@ The worker follows this lifecycle on each iteration:
 4. **Manage fancier** — if `ManagementEnabled`, run autonomous management (flight enrollment, etc.). Uses the game rules documented in [GAME_GUIDE.md](GAME_GUIDE.md) for all decisions.
 5. **Auto-bid** — if enabled, poll transfers and place bids autonomously.
 6. **Wait** — sleep for the configured interval, then repeat from step 1.
+
+### Dry run (advisor mode)
+
+The worker defaults to `DryRun: true`. In this mode it authenticates, syncs data, and builds management plans for every enabled subsystem, but **does not execute any write actions**. Instead it produces an advisor report — a formatted summary of everything it *would* do — so you can review the suggestions and perform them manually on the website.
+
+This is the recommended way to start using the worker: observe what it recommends before letting it act autonomously.
+
+#### Quick start
+
+1. Create a `.env` file (or set environment variables) with your credentials:
+
+```text
+PF_EMAIL=your@email.com
+PF_PASSWORD=your-password
+PF_FANCIER_ID=7
+```
+
+2. Run the worker. No other configuration is needed — `DryRun` and `ManagementEnabled` are both `true` by default:
+
+```text
+dotnet run --project src/PigeonFancierTracker.Worker -- --Worker:FancierId=7
+```
+
+Or with Docker:
+
+```text
+docker compose up -d
+docker compose logs -f worker
+```
+
+3. After each sync cycle, the worker prints an advisor report to the console:
+
+```text
+=======================================================
+  ADVISOR REPORT — 2026-08-08 09:30 UTC
+=======================================================
+
+  FINANCE
+     Balance: 1234.56 (delta: -45.00)
+     Alert: None — spending allowed
+
+  FOOD (3.2 days remaining)
+     -> Buy 5x Grain @ 2.00 = 10.00
+     -> Set distribution: B:25% G:30% C:25% P:20%
+
+  TRAINING
+     Current: General
+     -> Set focus to Conditional (score=0.85)
+        Reason: Weak conditional skills detected
+
+  FLIGHTS
+     -> Enroll "Speedy" in Sprint #42 (Brussels, 150km) score=8.5
+     -> Enroll "Thunder" in Middle #43 (Liege, 300km) score=7.2
+
+  LOFT (capacity: 18/20, 90% full, dirt: 45)
+     -> Clean loft (dirt=45): Dirt exceeds threshold
+     No pen purchase needed
+
+  BREEDING (4 couples, 2 slots)
+     No actions needed
+
+=======================================================
+```
+
+4. A JSON file with the full report data is saved after each cycle to:
+
+```text
+%LOCALAPPDATA%\PigeonFancierTracker\advisor-reports\report-{timestamp}.json
+```
+
+In Docker, the reports are at `/data/advisor-reports/` inside the container. Copy them to the host with:
+
+```text
+docker compose cp worker:/data/advisor-reports/ ./advisor-reports/
+```
+
+5. Read the report and perform the suggested actions manually on the Pigeon Fancier website.
+
+#### Enabling and disabling subsystems
+
+Each management subsystem can be toggled independently. In dry-run mode, disabled subsystems are simply omitted from the report. To focus the report on specific areas, disable the ones you do not need:
+
+```json
+{
+  "Worker": {
+    "DryRun": true,
+    "ManagementEnabled": true,
+    "AutoFlightEnabled": true,
+    "AutoFeedEnabled": true,
+    "AutoTrainEnabled": true,
+    "AutoLoftEnabled": true,
+    "AutoBreedEnabled": false,
+    "AutoFinanceGuardEnabled": true
+  }
+}
+```
+
+Or via command-line overrides:
+
+```text
+dotnet run --project src/PigeonFancierTracker.Worker -- --Worker:FancierId=7 --Worker:AutoBreedEnabled=true --Worker:AutoLoftEnabled=false
+```
+
+#### Transitioning to autonomous mode
+
+Once you are confident that the worker's suggestions match what you would do manually, switch `DryRun` to `false` to let it execute actions:
+
+```text
+dotnet run --project src/PigeonFancierTracker.Worker -- --Worker:FancierId=7 --Worker:DryRun=false
+```
+
+You can transition gradually by enabling one subsystem at a time while keeping others in observation. For example, let it manage training autonomously while you continue handling flights manually:
+
+```json
+{
+  "Worker": {
+    "DryRun": false,
+    "ManagementEnabled": true,
+    "AutoTrainEnabled": true,
+    "AutoFlightEnabled": false,
+    "AutoFeedEnabled": false,
+    "AutoLoftEnabled": false,
+    "AutoBreedEnabled": false
+  }
+}
+```
+
+#### What is safe in dry-run mode
+
+- **Authentication and sync always run** — these are read-only (GET requests) and needed so the Build phases have fresh data to analyze.
+- **No write API calls** — all `Execute*` methods are skipped. The worker never sends POST, PUT, or PATCH requests.
+- **Auto-bid stays disabled** — `AutoBidEnabled` defaults to `false` and is independent of the DryRun flag.
+- **The advisor report is the only output** — a formatted console log and a JSON file.
 
 ### Session recovery
 

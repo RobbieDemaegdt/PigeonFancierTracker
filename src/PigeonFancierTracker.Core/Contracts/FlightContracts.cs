@@ -1,3 +1,4 @@
+using PigeonFancierTracker.Core.Analytics;
 using PigeonFancierTracker.Core.Domain;
 
 namespace PigeonFancierTracker.Core.Contracts;
@@ -84,6 +85,11 @@ public sealed record PigeonResultLocationDto(
 
 // --- View models ---
 
+public sealed record FoodMix(int Barley, int Grain, int Corn, int Peanut)
+{
+    public string Display => $"B:{Barley}% G:{Grain}% C:{Corn}% P:{Peanut}%";
+}
+
 public sealed record FlightResultListItem(
     int FlightId,
     DateTime FlightDate,
@@ -97,7 +103,11 @@ public sealed record FlightResultListItem(
     int Points,
     decimal AverageSpeed,
     string PigeonName,
-    int PigeonId);
+    int PigeonId,
+    FoodMix? FoodMix = null)
+{
+    public string? FoodMixDisplay => FoodMix?.Display;
+}
 
 public sealed record PigeonDistanceProfile(
     int PigeonId,
@@ -128,9 +138,97 @@ public sealed record PigeonDistanceProfile(
 
 public sealed record FlightResultsPageData(
     IReadOnlyList<FlightResultListItem> RecentResults,
-    IReadOnlyList<PigeonDistanceProfile> PigeonProfiles);
+    IReadOnlyList<PigeonDistanceProfile> PigeonProfiles,
+    FoodImpactAnalysis? FoodAnalysis = null);
+
+// --- Upcoming & active flight view models ---
+
+public sealed record UpcomingFlightInfo(
+    int FlightId,
+    DateTime Start,
+    string? Location,
+    string FlightType,
+    int DistanceKm,
+    DistanceCategory Category,
+    int Subscribers,
+    decimal EntryPrice,
+    IReadOnlyList<PrizeTier> PrizeTable,
+    int TotalPrizePositions);
+
+public sealed record ActiveFlightInfo(
+    int FlightId,
+    DateTime Start,
+    string? Location,
+    string FlightType,
+    int DistanceKm,
+    DistanceCategory Category,
+    int Subscribers,
+    int Progress,
+    IReadOnlyList<ActivePigeonStanding> PigeonStandings,
+    IReadOnlyList<ActiveFancierStanding> FancierStandings,
+    IReadOnlyList<PrizeTier> PrizeTable,
+    decimal EntryPrice = 0,
+    decimal TotalPrizePool = 0);
+
+public sealed record ActivePigeonStanding(
+    int PigeonId,
+    string PigeonName,
+    int Position,
+    int Points,
+    decimal CurrentSpeed,
+    int RemainingDistance,
+    int Progress,
+    int FancierId,
+    string? FancierName,
+    decimal PrizeMoney = 0);
+
+public sealed record ActiveFancierStanding(
+    string FancierName,
+    int FancierId,
+    int TotalPoints,
+    int PigeonCount,
+    int BestPosition,
+    bool IsOwn,
+    decimal TotalPrizeMoney = 0,
+    int PrizePigeonCount = 0);
+
+public sealed record CompletedFlightSummary(
+    int FlightId,
+    DateTime FlightDate,
+    string? Location,
+    string FlightType,
+    int DistanceKm,
+    DistanceCategory Category,
+    int OwnPigeonCount,
+    int BestPosition,
+    int TotalParticipants,
+    int TotalPoints,
+    IReadOnlyList<PrizeTier> PrizeTable,
+    int TotalPrizePositions);
+
+public sealed record FlightSnapshotDiagnostic(
+    string Endpoint,
+    string NormalizedQuery,
+    int StatusCode,
+    DateTimeOffset CapturedAtUtc,
+    int BodyLength);
+
+public sealed record FlightDiagnosticReport(
+    int QueriedFancierId,
+    IReadOnlyList<FlightSnapshotDiagnostic> LiveSnapshots,
+    IReadOnlyList<FlightSnapshotDiagnostic> FlightSnapshots,
+    string? LiveSnapshotBodyPreview,
+    string? FlightSnapshotBodyPreview,
+    int ParsedLiveFlightsCount,
+    int FilteredActiveCount,
+    string? ParseError);
 
 public interface IFlightResultsReader
 {
     Task<FlightResultsPageData> GetFlightResultsAsync(int fancierId);
+    Task<IReadOnlyList<UpcomingFlightInfo>> GetUpcomingFlightsAsync(int fancierId);
+    Task<IReadOnlyList<ActiveFlightInfo>> GetActiveFlightsAsync(int fancierId);
+    Task<IReadOnlyList<CompletedFlightSummary>> GetCompletedFlightSummariesAsync(int fancierId);
+    Task<FlightDiagnosticReport> GetFlightDiagnosticsAsync(int fancierId);
+    Task SaveFoodCommentAsync(int fancierId, FoodMix mix, string? comment);
 }

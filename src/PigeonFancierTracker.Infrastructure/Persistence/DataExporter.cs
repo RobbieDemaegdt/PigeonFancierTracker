@@ -32,10 +32,16 @@ public sealed class DataExporter(IDbContextFactory<AppDbContext> dbContextFactor
         progress?.Report(new DataPortProgress("Vluchtresultaten laden...", 0.65));
         var flightResults = await db.FlightResults.AsNoTracking().ToListAsync(cancellationToken);
 
+        progress?.Report(new DataPortProgress("Voedersnapshots laden...", 0.68));
+        var foodSnapshots = await db.FoodDistributionSnapshots.AsNoTracking().ToListAsync(cancellationToken);
+
+        progress?.Report(new DataPortProgress("Sponsorsnapshots laden...", 0.69));
+        var sponsorSnapshots = await db.SponsorSnapshots.AsNoTracking().ToListAsync(cancellationToken);
+
         progress?.Report(new DataPortProgress("Archief schrijven...", 0.70));
 
         var manifest = new BackupManifest(
-            FormatVersion: 2,
+            FormatVersion: 4,
             ExportedAtUtc: DateTimeOffset.UtcNow,
             AppVersion: Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown",
             SnapshotCount: snapshots.Count,
@@ -43,7 +49,9 @@ public sealed class DataExporter(IDbContextFactory<AppDbContext> dbContextFactor
             SyncRunItemCount: syncRunItems.Count,
             TransferCount: transfers.Count,
             FlightCount: flights.Count,
-            FlightResultCount: flightResults.Count);
+            FlightResultCount: flightResults.Count,
+            FoodSnapshotCount: foodSnapshots.Count,
+            SponsorSnapshotCount: sponsorSnapshots.Count);
 
         using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
         using var archive = new ZipArchive(fileStream, ZipArchiveMode.Create);
@@ -55,11 +63,13 @@ public sealed class DataExporter(IDbContextFactory<AppDbContext> dbContextFactor
         await WriteJsonEntryAsync(archive, "completed_transfers.json", transfers, cancellationToken);
         await WriteJsonEntryAsync(archive, "flights.json", flights, cancellationToken);
         await WriteJsonEntryAsync(archive, "flight_results.json", flightResults, cancellationToken);
+        await WriteJsonEntryAsync(archive, "food_distribution_snapshots.json", foodSnapshots, cancellationToken);
+        await WriteJsonEntryAsync(archive, "sponsor_snapshots.json", sponsorSnapshots, cancellationToken);
 
         progress?.Report(new DataPortProgress("Export voltooid", 1.0));
 
-        var total = snapshots.Count + syncRuns.Count + syncRunItems.Count + transfers.Count + flights.Count + flightResults.Count;
-        return new DataPortResult(true, $"{total:N0} records geëxporteerd.", snapshots.Count, syncRuns.Count, syncRunItems.Count, transfers.Count, flights.Count, flightResults.Count);
+        var total = snapshots.Count + syncRuns.Count + syncRunItems.Count + transfers.Count + flights.Count + flightResults.Count + foodSnapshots.Count + sponsorSnapshots.Count;
+        return new DataPortResult(true, $"{total:N0} records geëxporteerd.", snapshots.Count, syncRuns.Count, syncRunItems.Count, transfers.Count, flights.Count, flightResults.Count, foodSnapshots.Count, sponsorSnapshots.Count);
     }
 
     private static async Task WriteJsonEntryAsync<T>(ZipArchive archive, string entryName, T data, CancellationToken cancellationToken)

@@ -255,6 +255,7 @@
                 <Style TargetType="DataGridCell">
                     <Setter Property="Padding" Value="8,4" />
                     <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Background" Value="Transparent" />
                     <Setter Property="Foreground" Value="{DynamicResource BodyTextBrush}" />
                     <Setter Property="Template">
                         <Setter.Value>

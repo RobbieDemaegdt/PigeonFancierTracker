@@ -24,6 +24,7 @@ public sealed class FancierWorkerService(
     ILoftManager loftManager,
     IBreedingManager breedingManager,
     FlightResultIngester flightResultIngester,
+    FoodDistributionIngester foodDistributionIngester,
     AuthenticatedReadTransportProxy transportProxy,
     HttpClientReadTransport readTransport,
     PigeonFancierApiClient apiClient,
@@ -215,6 +216,11 @@ public sealed class FancierWorkerService(
             logger.LogInformation("Ingesting flight results");
             await flightResultIngester.IngestAsync(config.FancierId, ct);
             logger.LogInformation("Flight ingestion completed");
+
+            logger.LogInformation("Ingesting food distribution snapshot");
+            await foodDistributionIngester.BackfillAsync(config.FancierId, ct);
+            await foodDistributionIngester.IngestAsync(config.FancierId, ct);
+            logger.LogInformation("Food distribution ingestion completed");
         }
         catch (Exception ex)
         {
@@ -229,87 +235,56 @@ public sealed class FancierWorkerService(
 
         try
         {
+            FinanceStatus? financeStatus = null;
+            FoodManagementPlan? foodPlan = null;
+            TrainingManagementPlan? trainingPlan = null;
+            FlightEnrollmentPlan? flightPlan = null;
+            BreedingManagementPlan? breedingPlan = null;
+            LoftManagementPlan? loftPlan = null;
+
             if (config.AutoFinanceGuardEnabled)
             {
-                var financeStatus = await financeGuard.EvaluateAsync(
+                financeStatus = await financeGuard.EvaluateAsync(
                     config.FancierId, config.MinBalanceAlert, ct);
 
                 foreach (var warning in financeStatus.Warnings)
                     logger.LogWarning("Finance: {Warning}", warning);
 
                 logger.LogInformation(
-                    "Balance: €{Balance:F2} (delta: €{Delta:F2}), alert: {Alert}, spending: {Allowed}",
+                    "Balance: {Balance:F2} (delta: {Delta:F2}), alert: {Alert}, spending: {Allowed}",
                     financeStatus.Balance, financeStatus.BalanceDelta,
                     financeStatus.AlertLevel, financeStatus.SpendingAllowed);
 
                 if (!financeStatus.SpendingAllowed)
                 {
-                    logger.LogWarning("Spending blocked — skipping food and flight management");
+                    logger.LogWarning("Spending blocked — skipping management");
+
+                    if (config.DryRun)
+                        await WriteAdvisorReportAsync(new AdvisorReport(
+                            DateTime.UtcNow, financeStatus, null, null, null, null, null));
+
                     return;
                 }
             }
 
             if (config.AutoFeedEnabled)
             {
-                logger.LogInformation("Running food management");
-                var foodPlan = await foodManager.BuildFoodPlanAsync(config.FancierId, config.MinFoodDaysReserve, ct);
+                logger.LogInformation("Building food plan");
+                foodPlan = await foodManager.BuildFoodPlanAsync(config.FancierId, config.MinFoodDaysReserve, ct);
 
-                foreach (var skip in foodPlan.Skipped)
-                    logger.LogDebug("Food skip: {Reason}", skip);
-
-                var hasPurchases = foodPlan.Purchases.Count > 0;
-                var hasDistChange = foodPlan.DistributionChange is not null;
-
-                if (hasPurchases || hasDistChange)
+                if (!config.DryRun && (foodPlan.Purchases.Count > 0 || foodPlan.DistributionChange is not null))
                 {
-                    if (config.DryRun)
-                    {
-                        if (hasPurchases)
-                        {
-                            logger.LogInformation("[DRY RUN] Would buy food ({Days:F1} days remaining):", foodPlan.DaysRemaining);
-                            foreach (var purchase in foodPlan.Purchases)
-                                logger.LogInformation("[DRY RUN]   {Amount}x {Name} @ €{Price:F2} = €{Total:F2}",
-                                    purchase.Amount, purchase.Name, purchase.UnitPrice, purchase.TotalCost);
-                        }
-
-                        if (foodPlan.DistributionChange is { } dist)
-                        {
-                            logger.LogInformation("[DRY RUN] Would set food distribution: B:{Barley}% G:{Grain}% C:{Corn}% P:{Peanut}%",
-                                dist.Barley, dist.Grain, dist.Corn, dist.Peanut);
-                        }
-                    }
-                    else
-                    {
-                        await foodManager.ExecuteFoodPlanAsync(foodPlan, ct);
-                        logger.LogInformation("Food management completed");
-                    }
-                }
-                else
-                {
-                    logger.LogInformation("No food actions needed this cycle ({Days:F1} days remaining)", foodPlan.DaysRemaining);
+                    await foodManager.ExecuteFoodPlanAsync(foodPlan, ct);
+                    logger.LogInformation("Food management completed");
                 }
             }
 
             if (config.AutoTrainEnabled)
             {
-                logger.LogInformation("Running training management");
-                var trainingPlan = await trainingManager.BuildTrainingPlanAsync(config.FancierId, ct);
+                logger.LogInformation("Building training plan");
+                trainingPlan = await trainingManager.BuildTrainingPlanAsync(config.FancierId, ct);
 
-                foreach (var skip in trainingPlan.Skipped)
-                    logger.LogDebug("Training skip: {Reason}", skip);
-
-                foreach (var analysis in trainingPlan.SkillAnalysis)
-                    logger.LogDebug("Training analysis: {Analysis}", analysis);
-
-                if (config.DryRun)
-                {
-                    logger.LogInformation(
-                        "[DRY RUN] Would set training focus to {Focus} (score={Score:F2}): {Reason}",
-                        trainingPlan.Recommendation.RecommendedFocus,
-                        trainingPlan.Recommendation.Score,
-                        trainingPlan.Recommendation.Reason);
-                }
-                else
+                if (!config.DryRun)
                 {
                     await trainingManager.ExecuteTrainingPlanAsync(trainingPlan, ct);
                     logger.LogInformation("Training management completed");
@@ -318,113 +293,184 @@ public sealed class FancierWorkerService(
 
             if (config.AutoFlightEnabled)
             {
-                logger.LogInformation("Running flight enrollment");
-                var plan = await flightManager.BuildEnrollmentPlanAsync(config.FancierId, ct);
+                logger.LogInformation("Building flight enrollment plan");
+                flightPlan = await flightManager.BuildEnrollmentPlanAsync(config.FancierId, ct);
 
-                foreach (var skip in plan.Skipped)
-                    logger.LogDebug("Flight skip: {Reason}", skip);
-
-                if (plan.Actions.Count > 0)
+                if (!config.DryRun && flightPlan.Actions.Count > 0)
                 {
-                    if (config.DryRun)
-                    {
-                        logger.LogInformation("[DRY RUN] Would enroll {Count} pigeons in flights:", plan.Actions.Count);
-                        foreach (var action in plan.Actions)
-                            logger.LogInformation("[DRY RUN]   {Pigeon} → {Type} {FlightId} ({Location}, {Distance}km) score={Score:F1}",
-                                action.PigeonName, action.FlightType, action.FlightId,
-                                action.Location, action.DistanceKm, action.Score);
-                    }
-                    else
-                    {
-                        var enrolled = await flightManager.ExecuteEnrollmentAsync(plan, ct);
-                        logger.LogInformation("Flight enrollment completed: {Enrolled}/{Total} pigeons enrolled",
-                            enrolled, plan.Actions.Count);
-                    }
-                }
-                else
-                {
-                    logger.LogInformation("No flight enrollments needed this cycle");
+                    var enrolled = await flightManager.ExecuteEnrollmentAsync(flightPlan, ct);
+                    logger.LogInformation("Flight enrollment completed: {Enrolled}/{Total}",
+                        enrolled, flightPlan.Actions.Count);
                 }
             }
 
             if (config.AutoBreedEnabled)
             {
-                logger.LogInformation("Running breeding management");
-                var breedingPlan = await breedingManager.BuildBreedingPlanAsync(config.FancierId, ct);
+                logger.LogInformation("Building breeding plan");
+                breedingPlan = await breedingManager.BuildBreedingPlanAsync(config.FancierId, ct);
 
-                foreach (var skip in breedingPlan.Skipped)
-                    logger.LogDebug("Breeding skip: {Reason}", skip);
-
-                var hasActions = breedingPlan.PairsToCreate.Count > 0
-                    || breedingPlan.PairsToSplit.Count > 0;
-
-                if (hasActions)
+                if (!config.DryRun && (breedingPlan.PairsToCreate.Count > 0 || breedingPlan.PairsToSplit.Count > 0))
                 {
-                    if (config.DryRun)
-                    {
-                        foreach (var pair in breedingPlan.PairsToSplit)
-                            logger.LogInformation(
-                                "[DRY RUN] Would split incompatible couple {CoupleId}: {Cock} + {Hen} ({Days} days)",
-                                pair.CoupleId, pair.CockName, pair.HenName, pair.Days);
-
-                        foreach (var candidate in breedingPlan.PairsToCreate)
-                            logger.LogInformation(
-                                "[DRY RUN] Would pair {Cock} (♂) + {Hen} (♀), score={Score:F1}",
-                                candidate.CockName, candidate.HenName, candidate.CompatibilityScore);
-                    }
-                    else
-                    {
-                        await breedingManager.ExecuteBreedingPlanAsync(breedingPlan, ct);
-                        logger.LogInformation("Breeding management completed");
-                    }
-                }
-                else
-                {
-                    logger.LogInformation(
-                        "No breeding actions needed this cycle ({Couples} active couples, {Slots} slots available)",
-                        breedingPlan.CurrentCoupleCount, breedingPlan.AvailableBreedingSlots);
+                    await breedingManager.ExecuteBreedingPlanAsync(breedingPlan, ct);
+                    logger.LogInformation("Breeding management completed");
                 }
             }
 
             if (config.AutoLoftEnabled)
             {
-                logger.LogInformation("Running loft management");
-                var loftPlan = await loftManager.BuildLoftPlanAsync(config.FancierId, ct);
+                logger.LogInformation("Building loft plan");
+                loftPlan = await loftManager.BuildLoftPlanAsync(
+                    config.FancierId, config.AutoBarnUpgradeEnabled, ct);
 
-                foreach (var skip in loftPlan.Skipped)
-                    logger.LogDebug("Loft skip: {Reason}", skip);
-
-                var hasActions = loftPlan.CleanAction is not null
-                    || loftPlan.PenPurchaseAction is not null;
-
-                if (hasActions)
+                if (!config.DryRun && (loftPlan.CleanAction is not null
+                    || loftPlan.PenPurchaseAction is not null
+                    || loftPlan.BarnUpgrade is not null))
                 {
-                    if (config.DryRun)
-                    {
-                        if (loftPlan.CleanAction is { } cleanAction)
-                            logger.LogInformation("[DRY RUN] Would clean loft (dirt={Dirt})",
-                                cleanAction.CurrentDirt);
+                    await loftManager.ExecuteLoftPlanAsync(loftPlan, ct);
+                    logger.LogInformation("Loft management completed");
+                }
+            }
 
-                        if (loftPlan.PenPurchaseAction is { } penAction)
-                            logger.LogInformation("[DRY RUN] Would buy pens: {Amount}x {Name} @ €{Price:F2} = €{Total:F2}",
-                                penAction.Amount, penAction.Name, penAction.UnitPrice, penAction.TotalCost);
-                    }
-                    else
-                    {
-                        await loftManager.ExecuteLoftPlanAsync(loftPlan, ct);
-                        logger.LogInformation("Loft management completed");
-                    }
-                }
-                else
-                {
-                    logger.LogInformation("No loft actions needed this cycle");
-                }
+            if (config.DryRun)
+            {
+                await WriteAdvisorReportAsync(new AdvisorReport(
+                    DateTime.UtcNow, financeStatus, foodPlan, trainingPlan,
+                    flightPlan, breedingPlan, loftPlan));
             }
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Management cycle failed");
         }
+    }
+
+    private async Task WriteAdvisorReportAsync(AdvisorReport report)
+    {
+        var summary = FormatAdvisorSummary(report);
+        logger.LogInformation("{AdvisorReport}", summary);
+
+        try
+        {
+            var reportsDir = Path.Combine(config.AppDataDirectory, "advisor-reports");
+            Directory.CreateDirectory(reportsDir);
+
+            var fileName = $"report-{report.GeneratedAtUtc:yyyy-MM-dd_HH-mm}.json";
+            var filePath = Path.Combine(reportsDir, fileName);
+
+            var json = System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+            });
+            await File.WriteAllTextAsync(filePath, json);
+
+            logger.LogInformation("Advisor report saved to {Path}", filePath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to write advisor report file");
+        }
+    }
+
+    private static string FormatAdvisorSummary(AdvisorReport report)
+    {
+        var sb = new System.Text.StringBuilder();
+        var line = new string('=', 55);
+
+        sb.AppendLine();
+        sb.AppendLine(line);
+        sb.AppendLine($"  ADVISOR REPORT — {report.GeneratedAtUtc:yyyy-MM-dd HH:mm} UTC");
+        sb.AppendLine(line);
+
+        if (report.Finance is { } fin)
+        {
+            sb.AppendLine();
+            sb.AppendLine("  FINANCE");
+            sb.AppendLine($"     Balance: {fin.Balance:F2} (delta: {fin.BalanceDelta:F2})");
+            sb.AppendLine($"     Transfer balance: {fin.TransferBalance:F2}, Savings: {fin.Savings:F2}");
+            sb.AppendLine($"     Alert: {fin.AlertLevel} — spending {(fin.SpendingAllowed ? "allowed" : "BLOCKED")}");
+            foreach (var w in fin.Warnings)
+                sb.AppendLine($"     !! {w}");
+        }
+
+        if (report.FoodPlan is { } food)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"  FOOD ({food.DaysRemaining:F1} days remaining)");
+            if (food.Purchases.Count > 0)
+            {
+                foreach (var p in food.Purchases)
+                    sb.AppendLine($"     -> Buy {p.Amount}x {p.Name} @ {p.UnitPrice:F2} = {p.TotalCost:F2}");
+            }
+            if (food.DistributionChange is { } dist)
+            {
+                sb.AppendLine($"     -> Set distribution: B:{dist.Barley}% G:{dist.Grain}% C:{dist.Corn}% P:{dist.Peanut}%");
+            }
+            if (food.Purchases.Count == 0 && food.DistributionChange is null)
+                sb.AppendLine("     No actions needed");
+        }
+
+        if (report.TrainingPlan is { } train)
+        {
+            sb.AppendLine();
+            sb.AppendLine("  TRAINING");
+            sb.AppendLine($"     Current: {train.CurrentFocus?.ToString() ?? "unknown"}");
+            sb.AppendLine($"     -> Set focus to {train.Recommendation.RecommendedFocus} (score={train.Recommendation.Score:F2})");
+            sb.AppendLine($"        Reason: {train.Recommendation.Reason}");
+        }
+
+        if (report.FlightPlan is { } flights)
+        {
+            sb.AppendLine();
+            sb.AppendLine("  FLIGHTS");
+            if (flights.Actions.Count > 0)
+            {
+                foreach (var a in flights.Actions)
+                    sb.AppendLine($"     -> Enroll \"{a.PigeonName}\" in {a.FlightType} #{a.FlightId} ({a.Location}, {a.DistanceKm}km) score={a.Score:F1}");
+            }
+            else
+            {
+                sb.AppendLine("     No enrollments needed");
+            }
+        }
+
+        if (report.BreedingPlan is { } breed)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"  BREEDING ({breed.CurrentCoupleCount} couples, {breed.AvailableBreedingSlots} slots)");
+            if (breed.PairsToSplit.Count > 0)
+            {
+                foreach (var p in breed.PairsToSplit)
+                    sb.AppendLine($"     -> Split couple #{p.CoupleId}: {p.CockName} + {p.HenName} ({p.Days} days)");
+            }
+            if (breed.PairsToCreate.Count > 0)
+            {
+                foreach (var c in breed.PairsToCreate)
+                    sb.AppendLine($"     -> Pair {c.CockName} + {c.HenName} (score={c.CompatibilityScore:F1})");
+            }
+            if (breed.PairsToSplit.Count == 0 && breed.PairsToCreate.Count == 0)
+                sb.AppendLine("     No actions needed");
+        }
+
+        if (report.LoftPlan is { } loft)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"  LOFT (capacity: {loft.CurrentOccupied}/{loft.CurrentCapacity}, {loft.OccupancyPercent:F0}% full, dirt: {loft.CurrentDirt?.ToString() ?? "?"})");
+            if (loft.CleanAction is { } clean)
+                sb.AppendLine($"     -> Clean loft (dirt={clean.CurrentDirt}): {clean.Reason}");
+            if (loft.PenPurchaseAction is { } pen)
+                sb.AppendLine($"     -> Buy {pen.Amount}x {pen.Name} @ {pen.UnitPrice:F2} = {pen.TotalCost:F2}");
+            if (loft.BarnUpgrade is { } upgrade)
+                sb.AppendLine($"     -> Upgrade barn from {upgrade.CurrentTier} (size={upgrade.CurrentSize}): {upgrade.Reason}");
+            if (loft.CleanAction is null && loft.PenPurchaseAction is null && loft.BarnUpgrade is null)
+                sb.AppendLine("     No actions needed");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine(line);
+
+        return sb.ToString();
     }
 
     private void StartAutoBid()

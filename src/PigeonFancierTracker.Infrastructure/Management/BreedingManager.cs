@@ -390,7 +390,7 @@ public sealed class BreedingManager(
             .Where(x => x.SelectedFancierId == fancierId
                 && x.Endpoint.StartsWith("/api/translation/")
                 && x.StatusCode >= 200 && x.StatusCode < 300)
-            .OrderByDescending(x => x.CapturedAtUtc)
+            .OrderByDescending(x => x.Id)
             .Take(2)
             .ToListAsync(ct);
 

@@ -32,6 +32,7 @@ public sealed class FlightManager(
         var flightsThisWeek = await CountFlightsThisWeekAsync(fancierId, cancellationToken);
         var flights = await FetchUpcomingFlightsAsync(fancierId, cancellationToken);
         var weather = await ReadWeatherAsync(fancierId, cancellationToken);
+        var fancierLocation = await ReadFancierLocationAsync(fancierId, cancellationToken);
 
         if (flights.Count == 0)
         {
@@ -48,13 +49,14 @@ public sealed class FlightManager(
 
         foreach (var flight in flights)
         {
-            var distanceCategory = DistanceProfileCalculator.Classify(flight.Distance);
+            var realDistance = ComputeFlightDistance(flight, fancierLocation);
+            var distanceCategory = DistanceProfileCalculator.Classify(realDistance);
             var flightWeather = FindWeatherForDate(weather, flight.Start);
 
             var eligibility = await FetchFlightEligibilityAsync(flight.Id, cancellationToken);
             if (eligibility is null)
             {
-                skipped.Add($"Flight {flight.Id} ({flight.Location?.Name}, {flight.Distance}km): failed to fetch eligibility");
+                skipped.Add($"Flight {flight.Id} ({flight.Location?.Name}, {realDistance}km): failed to fetch eligibility");
                 continue;
             }
 
@@ -69,7 +71,7 @@ public sealed class FlightManager(
 
             if (eligibleIds.Count == 0)
             {
-                skipped.Add($"Flight {flight.Id} ({flight.Location?.Name}, {flight.Distance}km): no eligible pigeons");
+                skipped.Add($"Flight {flight.Id} ({flight.Location?.Name}, {realDistance}km): no eligible pigeons");
                 continue;
             }
 
@@ -103,7 +105,7 @@ public sealed class FlightManager(
                 actions.Add(new FlightEnrollmentAction(
                     flight.Id,
                     flight.Type ?? "unknown",
-                    flight.Distance,
+                    realDistance,
                     distanceCategory.ToString(),
                     flight.Start,
                     flight.Location?.Name,
@@ -296,7 +298,7 @@ public sealed class FlightManager(
             .Where(x => x.SelectedFancierId == fancierId
                 && x.Endpoint.StartsWith("/api/translation/")
                 && x.StatusCode >= 200 && x.StatusCode < 300)
-            .OrderByDescending(x => x.CapturedAtUtc)
+            .OrderByDescending(x => x.Id)
             .Take(2)
             .ToListAsync(ct);
 
@@ -404,6 +406,46 @@ public sealed class FlightManager(
         catch (JsonException)
         {
             return [];
+        }
+    }
+
+    private static int ComputeFlightDistance(FlightDto flight, FancierLocationDto? fancierLocation)
+    {
+        if (fancierLocation?.Latitude is { } fLat
+            && fancierLocation?.Longitude is { } fLng
+            && flight.Location is { } releaseLoc)
+        {
+            var computed = DistanceCalculator.HaversineKm(
+                (double)fLat, (double)fLng,
+                releaseLoc.Lat, releaseLoc.Lng);
+            if (computed > 0)
+                return computed;
+        }
+
+        return flight.Distance;
+    }
+
+    private async Task<FancierLocationDto?> ReadFancierLocationAsync(int fancierId, CancellationToken ct)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(ct);
+        var snapshot = await db.RawApiSnapshots
+            .AsNoTracking()
+            .Where(x => x.SelectedFancierId == fancierId
+                && x.Endpoint == "/api/fancier/selected"
+                && x.StatusCode >= 200 && x.StatusCode < 300)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (snapshot is null) return null;
+
+        try
+        {
+            var fancier = JsonSerializer.Deserialize<SelectedFancierDto>(snapshot.ResponseBodyJson, JsonOptions);
+            return fancier?.Location;
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 

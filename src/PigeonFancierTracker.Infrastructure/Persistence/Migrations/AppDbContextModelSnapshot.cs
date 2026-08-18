@@ -200,6 +200,40 @@ namespace PigeonFancierTracker.Infrastructure.Persistence.Migrations
                     b.ToTable("FlightResults");
                 });
 
+            modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.FoodDistributionSnapshotEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Barley")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CapturedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Corn")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Grain")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Peanut")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SelectedFancierId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SelectedFancierId", "CapturedAtUtc");
+
+                    b.ToTable("FoodDistributionSnapshots");
+                });
+
             modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.OffspringCacheEntity", b =>
                 {
                     b.Property<long>("Id")
@@ -304,6 +338,58 @@ namespace PigeonFancierTracker.Infrastructure.Persistence.Migrations
                     b.HasIndex("Endpoint", "NormalizedQuery", "SelectedFancierId", "SourceSeasonId", "BodySha256");
 
                     b.ToTable("RawApiSnapshots");
+                });
+
+            modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.SponsorSnapshotEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanCallSponsors")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CapturedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ContractEndUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ContractId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Direct")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Monthly")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Runtime")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RuntimeRemaining")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SelectedFancierId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Signed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SponsorId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SelectedFancierId", "CapturedAtUtc");
+
+                    b.ToTable("SponsorSnapshots");
                 });
 
             modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.SyncRunEntity", b =>

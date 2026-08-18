@@ -1,0 +1,118 @@
+<UserControl x:Class="PigeonFancierTracker.App.SponsorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+            <TextBlock x:Name="SponsorStatusText" Text="Sponsorgegevens laden..." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,12" />
+
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Samenvatting" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <UniformGrid Columns="4">
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Text="Maandelijks inkomen" Foreground="{DynamicResource MutedTextBrush}" />
+                            <TextBlock x:Name="TotalMonthlyText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Text="Historisch gemiddelde" Foreground="{DynamicResource MutedTextBrush}" />
+                            <TextBlock x:Name="HistAvgText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Text="Trend" Foreground="{DynamicResource MutedTextBrush}" />
+                            <TextBlock x:Name="TrendText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Nieuwe sponsors" Foreground="{DynamicResource MutedTextBrush}" />
+                            <TextBlock x:Name="CanCallText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Actieve sponsors" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Maximaal 3 sponsorcontracten tegelijk actief." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <UniformGrid x:Name="SponsorSlotsGrid" Columns="3">
+                        <Border x:Name="Slot1" Style="{StaticResource CardBorderStyle}" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock x:Name="Slot1Title" Text="Vrij slot" Foreground="{DynamicResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" />
+                                <TextBlock x:Name="Slot1Monthly" Text="" Foreground="{DynamicResource BodyTextBrush}" Margin="0,4,0,0" />
+                                <TextBlock x:Name="Slot1Direct" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot1Runtime" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot1Total" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot1End" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot1Score" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="Slot2" Style="{StaticResource CardBorderStyle}" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock x:Name="Slot2Title" Text="Vrij slot" Foreground="{DynamicResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" />
+                                <TextBlock x:Name="Slot2Monthly" Text="" Foreground="{DynamicResource BodyTextBrush}" Margin="0,4,0,0" />
+                                <TextBlock x:Name="Slot2Direct" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot2Runtime" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot2Total" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot2End" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot2Score" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="Slot3" Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock x:Name="Slot3Title" Text="Vrij slot" Foreground="{DynamicResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" />
+                                <TextBlock x:Name="Slot3Monthly" Text="" Foreground="{DynamicResource BodyTextBrush}" Margin="0,4,0,0" />
+                                <TextBlock x:Name="Slot3Direct" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot3Runtime" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot3Total" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot3End" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                <TextBlock x:Name="Slot3Score" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="PendingOffersCard" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Beschikbare aanbiedingen" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Openstaande sponsoraanbiedingen die je kunt accepteren." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <DataGrid x:Name="PendingOffersGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="300" GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Sponsor" Binding="{Binding SponsorId}" Width="80" />
+                            <DataGridTextColumn Header="Maandelijks" Binding="{Binding MonthlyDisplay}" Width="100" />
+                            <DataGridTextColumn Header="Tekenpremie" Binding="{Binding DirectDisplay}" Width="100" />
+                            <DataGridTextColumn Header="Looptijd" Binding="{Binding RuntimeDisplay}" Width="80" />
+                            <DataGridTextColumn Header="Totaalwaarde" Binding="{Binding TotalValueDisplay}" Width="110" />
+                            <DataGridTextColumn Header="Score" Binding="{Binding ScoreDisplay}" Width="60" />
+                            <DataGridTextColumn Header="Beoordeling" Binding="{Binding Verdict}" Width="100" />
+                            <DataGridTextColumn Header="Aanbeveling" Binding="{Binding Recommendation}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Sponsorhistoriek" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Alle bekende sponsorcontracten met hun beoordeling." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <DataGrid x:Name="SponsorHistoryGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="400" GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Sponsor" Binding="{Binding SponsorId}" Width="80" />
+                            <DataGridTextColumn Header="Maandelijks" Binding="{Binding MonthlyDisplay}" Width="100" />
+                            <DataGridTextColumn Header="Direct" Binding="{Binding DirectDisplay}" Width="80" />
+                            <DataGridTextColumn Header="Looptijd" Binding="{Binding RuntimeDisplay}" Width="80" />
+                            <DataGridTextColumn Header="Totaal verdiend" Binding="{Binding TotalDisplay}" Width="110" />
+                            <DataGridTextColumn Header="Einddatum" Binding="{Binding EndDisplay}" Width="120" />
+                            <DataGridTextColumn Header="Score" Binding="{Binding ScoreDisplay}" Width="60" />
+                            <DataGridTextColumn Header="Beoordeling" Binding="{Binding Verdict}" Width="100" />
+                            <DataGridTextColumn Header="Gem./maand" Binding="{Binding AvgPerMonthDisplay}" Width="100" />
+                            <DataGridTextColumn Header="Aanbeveling" Binding="{Binding Recommendation}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

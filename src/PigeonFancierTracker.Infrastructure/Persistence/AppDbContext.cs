@@ -10,6 +10,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CompletedTransferEntity> CompletedTransfers => Set<CompletedTransferEntity>();
     public DbSet<FlightEntity> Flights => Set<FlightEntity>();
     public DbSet<FlightResultEntity> FlightResults => Set<FlightResultEntity>();
+    public DbSet<FoodDistributionSnapshotEntity> FoodDistributionSnapshots => Set<FoodDistributionSnapshotEntity>();
+    public DbSet<SponsorSnapshotEntity> SponsorSnapshots => Set<SponsorSnapshotEntity>();
     public DbSet<OffspringCacheEntity> OffspringCache => Set<OffspringCacheEntity>();
     public DbSet<PedigreeCacheEntity> PedigreeCache => Set<PedigreeCacheEntity>();
 
@@ -75,6 +77,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.PigeonId).IsUnique();
+        });
+
+        modelBuilder.Entity<FoodDistributionSnapshotEntity>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.SelectedFancierId, x.CapturedAtUtc });
+        });
+
+        modelBuilder.Entity<SponsorSnapshotEntity>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.SelectedFancierId, x.CapturedAtUtc });
         });
     }
 }

@@ -22,7 +22,8 @@ public sealed record SelectedFancierDto(
     [property: JsonPropertyName("pigeonCount")] int? PigeonCount,
     [property: JsonPropertyName("finances")] FinanceSummaryDto? Finances,
     [property: JsonPropertyName("food")] FoodStockDto? Food,
-    [property: JsonPropertyName("pen")] PenDto? Pen);
+    [property: JsonPropertyName("pen")] PenDto? Pen,
+    [property: JsonPropertyName("trainingType")] string? TrainingType = null);
 
 public sealed record FancierLocationDto(
     [property: JsonPropertyName("id")] int? Id,
@@ -36,7 +37,21 @@ public sealed record FinanceSummaryDto(
     [property: JsonPropertyName("prizes")] decimal? Prizes,
     [property: JsonPropertyName("other")] decimal? Other,
     [property: JsonPropertyName("transferBalance")] decimal? TransferBalance,
-    [property: JsonPropertyName("savings")] decimal? Savings);
+    [property: JsonPropertyName("savings")] decimal? Savings,
+    [property: JsonPropertyName("sponsors")] IReadOnlyList<SponsorContractDto>? Sponsors = null,
+    [property: JsonPropertyName("canCallSponsors")] bool? CanCallSponsors = null);
+
+public sealed record SponsorContractDto(
+    [property: JsonPropertyName("id")] int? Id,
+    [property: JsonPropertyName("sponsorId")] int? SponsorId,
+    [property: JsonPropertyName("monthly")] decimal? Monthly,
+    [property: JsonPropertyName("direct")] decimal? Direct,
+    [property: JsonPropertyName("runtime")] int? Runtime,
+    [property: JsonPropertyName("runtimeRemaining")] int? RuntimeRemaining,
+    [property: JsonPropertyName("signed")] bool? Signed,
+    [property: JsonPropertyName("rating")] int? Rating,
+    [property: JsonPropertyName("total")] decimal? Total,
+    [property: JsonPropertyName("end")] DateTimeOffset? End);
 
 public sealed record FoodStockDto(
     [property: JsonPropertyName("barley")] int? Barley,
@@ -47,6 +62,17 @@ public sealed record FoodStockDto(
 public sealed record PenDto(
     [property: JsonPropertyName("tier")] string? Tier,
     [property: JsonPropertyName("dirt")] int? Dirt);
+
+public sealed record BarnTierDto(
+    [property: JsonPropertyName("tier")] string? Tier,
+    [property: JsonPropertyName("price")] decimal? Price,
+    [property: JsonPropertyName("size")] int? Size);
+
+public sealed record BarnStatusDto(
+    [property: JsonPropertyName("tier")] string? Tier,
+    [property: JsonPropertyName("dirt")] int? Dirt,
+    [property: JsonPropertyName("barn")] BarnTierDto? Barn,
+    [property: JsonPropertyName("nextTier")] BarnTierDto? NextTier);
 
 public sealed record PigeonDto(
     [property: JsonPropertyName("id")] int? Id,

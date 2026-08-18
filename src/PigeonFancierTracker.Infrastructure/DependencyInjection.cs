@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddSingleton<RawSnapshotStore>();
         services.AddSingleton<ITrackerDataReader, TrackerDataReader>();
         services.AddSingleton<IPigeonHistoryReader, PigeonHistoryReader>();
+        services.AddSingleton<IPigeonOverviewReader, PigeonOverviewReader>();
         services.AddSingleton<ITransferDataReader, TransferDataReader>();
         services.AddSingleton<ISessionStateService, SessionStateService>();
         services.AddSingleton<CookieContainer>();
@@ -35,6 +36,9 @@ public static class DependencyInjection
         services.AddSingleton<PigeonFancierApiClient>();
         services.AddSingleton<ISyncCoordinator, SyncCoordinator>();
         services.AddSingleton<FlightResultIngester>();
+        services.AddSingleton<FoodDistributionIngester>();
+        services.AddSingleton<SponsorIngester>();
+        services.AddSingleton<ISponsorDataReader, SponsorDataReader>();
         services.AddSingleton<IFlightResultsReader, FlightResultsReader>();
         services.AddSingleton<IDataExporter, DataExporter>();
         services.AddSingleton<IDataImporter, DataImporter>();
@@ -47,6 +51,8 @@ public static class DependencyInjection
         services.AddSingleton<ITrainingManager, TrainingManager>();
         services.AddSingleton<ILoftManager, LoftManager>();
         services.AddSingleton<IBreedingManager, BreedingManager>();
+        services.AddSingleton<IMarketAnalysisReader, MarketAnalysisReader>();
+        services.AddSingleton<IRankingDataReader, RankingDataReader>();
         return services;
     }
 

@@ -9,7 +9,10 @@ public sealed record AgeBucket(
     int AgeMonths,
     decimal AvgTotalSkill,
     double? AvgPercentile,
-    int ObservationCount);
+    int ObservationCount)
+{
+    public string AgeDisplay => $"{AgeMonths / 12}j {AgeMonths % 12}m";
+}
 
 public sealed record AgeCurveResult(
     IReadOnlyList<AgeBucket> Buckets,

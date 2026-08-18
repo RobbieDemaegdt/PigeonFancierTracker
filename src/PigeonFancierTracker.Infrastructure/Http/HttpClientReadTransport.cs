@@ -89,6 +89,8 @@ public sealed class HttpClientReadTransport : IAuthenticatedReadTransport
             .OrderBy(x => x.Key, StringComparer.Ordinal)
             .ThenBy(x => x.Value, StringComparer.Ordinal)
             .Select(x => $"{Uri.EscapeDataString(x.Key)}={Uri.EscapeDataString(x.Value!)}"));
-        return string.IsNullOrEmpty(normalizedQuery) ? path : $"{path}?{normalizedQuery}";
+        if (string.IsNullOrEmpty(normalizedQuery)) return path;
+        var separator = path.Contains('?') ? '&' : '?';
+        return $"{path}{separator}{normalizedQuery}";
     }
 }

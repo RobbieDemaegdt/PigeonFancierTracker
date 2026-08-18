@@ -79,10 +79,12 @@ public sealed class DataExporterTests : IDisposable
             archive.GetEntry("completed_transfers.json").Should().NotBeNull();
             archive.GetEntry("flights.json").Should().NotBeNull();
             archive.GetEntry("flight_results.json").Should().NotBeNull();
+            archive.GetEntry("food_distribution_snapshots.json").Should().NotBeNull();
+            archive.GetEntry("sponsor_snapshots.json").Should().NotBeNull();
 
             await using var manifestStream = archive.GetEntry("manifest.json")!.Open();
             var manifest = await JsonSerializer.DeserializeAsync<BackupManifest>(manifestStream);
-            manifest!.FormatVersion.Should().Be(2);
+            manifest!.FormatVersion.Should().Be(4);
             manifest.SnapshotCount.Should().Be(1);
         }
         finally

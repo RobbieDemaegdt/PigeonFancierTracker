@@ -15,16 +15,19 @@ public sealed class OffspringPerformanceCalculatorTests
     }
 
     [Fact]
-    public void Pair_with_empty_offspring_filtered_out()
+    public void Pair_with_no_offspring_skills_shows_dash()
     {
         var pairs = new List<BreedingPairInput>
         {
-            new("Cock", 1, 60m, "Hen", 2, 50m, []),
+            new("Cock", 1, 60m, "Hen", 2, 50m, 3, []),
         };
 
         var result = OffspringPerformanceCalculator.Calculate(pairs);
 
-        result.Should().BeEmpty();
+        result.Should().HaveCount(1);
+        result[0].OffspringCount.Should().Be(3);
+        result[0].AvgOffspringTotalSkill.Should().BeNull();
+        result[0].SkillDeltaDisplay.Should().Be("—");
     }
 
     [Fact]
@@ -32,7 +35,7 @@ public sealed class OffspringPerformanceCalculatorTests
     {
         var pairs = new List<BreedingPairInput>
         {
-            new("Cock", 1, 60m, "Hen", 2, 50m, [58m, 62m]),
+            new("Cock", 1, 60m, "Hen", 2, 50m, 2, [58m, 62m]),
         };
 
         var result = OffspringPerformanceCalculator.Calculate(pairs);
@@ -47,7 +50,7 @@ public sealed class OffspringPerformanceCalculatorTests
     {
         var pairs = new List<BreedingPairInput>
         {
-            new("Cock", 1, 60m, "Hen", 2, 50m, [60m]),
+            new("Cock", 1, 60m, "Hen", 2, 50m, 1, [60m]),
         };
 
         var result = OffspringPerformanceCalculator.Calculate(pairs);
@@ -62,7 +65,7 @@ public sealed class OffspringPerformanceCalculatorTests
     {
         var pairs = new List<BreedingPairInput>
         {
-            new("Cock", 1, 60m, "Hen", 2, 50m, [40m]),
+            new("Cock", 1, 60m, "Hen", 2, 50m, 1, [40m]),
         };
 
         var result = OffspringPerformanceCalculator.Calculate(pairs);
@@ -76,7 +79,7 @@ public sealed class OffspringPerformanceCalculatorTests
     {
         var pairs = new List<BreedingPairInput>
         {
-            new("Cock", 1, 60m, "Hen", 2, 40m, [50m]),
+            new("Cock", 1, 60m, "Hen", 2, 40m, 1, [50m]),
         };
 
         var result = OffspringPerformanceCalculator.Calculate(pairs);
@@ -90,7 +93,7 @@ public sealed class OffspringPerformanceCalculatorTests
     {
         var pairs = new List<BreedingPairInput>
         {
-            new("Cock", 1, null, "Hen", 2, 50m, [55m]),
+            new("Cock", 1, null, "Hen", 2, 50m, 1, [55m]),
         };
 
         var result = OffspringPerformanceCalculator.Calculate(pairs);
@@ -105,9 +108,9 @@ public sealed class OffspringPerformanceCalculatorTests
     {
         var pairs = new List<BreedingPairInput>
         {
-            new("Worst", 1, 80m, "Pair", 2, 80m, [50m]),
-            new("Best", 3, 40m, "Pair", 4, 40m, [60m]),
-            new("Mid", 5, 50m, "Pair", 6, 50m, [52m]),
+            new("Worst", 1, 80m, "Pair", 2, 80m, 1, [50m]),
+            new("Best", 3, 40m, "Pair", 4, 40m, 1, [60m]),
+            new("Mid", 5, 50m, "Pair", 6, 50m, 1, [52m]),
         };
 
         var result = OffspringPerformanceCalculator.Calculate(pairs);

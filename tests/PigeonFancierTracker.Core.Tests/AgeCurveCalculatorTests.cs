@@ -70,7 +70,7 @@ public sealed class AgeCurveCalculatorTests
     }
 
     [Fact]
-    public void Peak_performance_age_uses_lowest_percentile()
+    public void Peak_performance_age_uses_highest_percentile()
     {
         var points = new List<AgeCurvePoint>
         {
@@ -81,7 +81,7 @@ public sealed class AgeCurveCalculatorTests
 
         var result = AgeCurveCalculator.Calculate(points);
 
-        result.PeakPerformanceAge.Should().Be(12);
+        result.PeakPerformanceAge.Should().Be(6);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class AgeCurveCalculatorTests
 
         var result = AgeCurveCalculator.Calculate(points);
 
-        result.PhaseDisplay.Should().Be("Groei (6-12m)");
+        result.PhaseDisplay.Should().Be("Groei (0j 6m-1j 0m)");
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class AgeCurveCalculatorTests
 
         var result = AgeCurveCalculator.Calculate(points);
 
-        result.PhaseDisplay.Should().Be("Daling (18-24m)");
+        result.PhaseDisplay.Should().Be("Daling (1j 6m-2j 0m)");
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class AgeCurveCalculatorTests
 
         var result = AgeCurveCalculator.Calculate(points);
 
-        result.PhaseDisplay.Should().Be("Groei (6-12m) → Piek (12m) → Daling (12-18m)");
+        result.PhaseDisplay.Should().Be("Groei (0j 6m-1j 0m) → Piek (1j 0m) → Daling (1j 0m-1j 6m)");
     }
 
     [Fact]

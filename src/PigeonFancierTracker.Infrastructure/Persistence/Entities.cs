@@ -102,6 +102,36 @@ public sealed class PedigreeCacheEntity
     public DateTimeOffset FetchedAtUtc { get; set; }
 }
 
+public sealed class FoodDistributionSnapshotEntity
+{
+    public long Id { get; set; }
+    public int SelectedFancierId { get; set; }
+    public int Barley { get; set; }
+    public int Grain { get; set; }
+    public int Corn { get; set; }
+    public int Peanut { get; set; }
+    public string? Comment { get; set; }
+    public DateTimeOffset CapturedAtUtc { get; set; }
+}
+
+public sealed class SponsorSnapshotEntity
+{
+    public long Id { get; set; }
+    public int SelectedFancierId { get; set; }
+    public int ContractId { get; set; }
+    public int SponsorId { get; set; }
+    public decimal Monthly { get; set; }
+    public decimal Direct { get; set; }
+    public int Runtime { get; set; }
+    public int RuntimeRemaining { get; set; }
+    public bool Signed { get; set; }
+    public int Rating { get; set; }
+    public decimal Total { get; set; }
+    public DateTimeOffset? ContractEndUtc { get; set; }
+    public bool CanCallSponsors { get; set; }
+    public DateTimeOffset CapturedAtUtc { get; set; }
+}
+
 public sealed class FlightResultEntity
 {
     public long Id { get; set; }

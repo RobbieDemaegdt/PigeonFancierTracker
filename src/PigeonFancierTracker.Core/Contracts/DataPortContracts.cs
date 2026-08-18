@@ -18,7 +18,9 @@ public sealed record DataPortResult(
     int SyncRunItemCount,
     int TransferCount,
     int FlightCount = 0,
-    int FlightResultCount = 0);
+    int FlightResultCount = 0,
+    int FoodSnapshotCount = 0,
+    int SponsorSnapshotCount = 0);
 
 public sealed record DataPortProgress(string StepLabel, double Percentage);
 
@@ -31,7 +33,9 @@ public sealed record BackupManifest(
     int SyncRunItemCount,
     int TransferCount,
     int FlightCount = 0,
-    int FlightResultCount = 0);
+    int FlightResultCount = 0,
+    int FoodSnapshotCount = 0,
+    int SponsorSnapshotCount = 0);
 
 public interface IDataResetter
 {

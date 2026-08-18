@@ -8,7 +8,7 @@ public sealed record OffspringDto(
     [property: JsonPropertyName("id")] int Id,
     [property: JsonPropertyName("firstNameId")] int? FirstNameId,
     [property: JsonPropertyName("lastNameId")] int? LastNameId,
-    [property: JsonPropertyName("sex")] string? Sex,
+    [property: JsonPropertyName("sex"), JsonConverter(typeof(FlexibleStringJsonConverter))] string? Sex,
     [property: JsonPropertyName("totalMonths")] int? TotalMonths,
     [property: JsonPropertyName("skills")] PigeonSkillsDto? Skills);
 
@@ -16,7 +16,7 @@ public sealed record PedigreeNodeDto(
     [property: JsonPropertyName("id")] int Id,
     [property: JsonPropertyName("firstNameId")] int? FirstNameId,
     [property: JsonPropertyName("lastNameId")] int? LastNameId,
-    [property: JsonPropertyName("sex")] string? Sex,
+    [property: JsonPropertyName("sex"), JsonConverter(typeof(FlexibleStringJsonConverter))] string? Sex,
     [property: JsonPropertyName("parentCock")] PedigreeNodeDto? ParentCock,
     [property: JsonPropertyName("parentHen")] PedigreeNodeDto? ParentHen);
 
@@ -28,7 +28,7 @@ public sealed record OffspringPerformanceItem(
     string PartnerName,
     int PartnerId,
     int OffspringCount,
-    decimal AvgOffspringTotalSkill,
+    decimal? AvgOffspringTotalSkill,
     decimal? ParentAvgTotalSkill,
     decimal SkillDelta,
     string SkillDeltaDisplay);

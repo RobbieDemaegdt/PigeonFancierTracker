@@ -16,15 +16,23 @@ public partial class MainWindow : Window
     private readonly ITrackerDataReader trackerDataReader;
     private readonly IBreedingDataReader breedingDataReader;
     private readonly FlightResultIngester flightResultIngester;
+    private readonly FoodDistributionIngester foodDistributionIngester;
+    private readonly SponsorIngester sponsorIngester;
     private readonly ISettingsService settings;
     private readonly ConnectionView connectionView;
     private readonly PigeonHistoryView pigeonHistoryView;
     private readonly TransferView transferView;
     private readonly FlightResultsView flightResultsView;
+    private readonly RankingView rankingView;
+    private readonly SponsorView sponsorView;
     private readonly DataView dataView;
+    private readonly IPigeonOverviewReader pigeonOverviewReader;
     private readonly IAutoBidService autoBidService;
     private readonly DispatcherTimer autoSyncTimer;
     private IReadOnlyList<PigeonListItem>? allPigeons;
+    private IReadOnlyList<PigeonListItem>? allOverviewPigeons;
+    private bool overviewLoaded;
+    private bool breedingLoaded;
 
     public MainWindow(
         ISessionStateService sessionState,
@@ -32,12 +40,17 @@ public partial class MainWindow : Window
         ITrackerDataReader trackerDataReader,
         IBreedingDataReader breedingDataReader,
         FlightResultIngester flightResultIngester,
+        FoodDistributionIngester foodDistributionIngester,
+        SponsorIngester sponsorIngester,
+        IPigeonOverviewReader pigeonOverviewReader,
         ISettingsService settings,
         StartupManager startupManager,
         ConnectionView connectionView,
         PigeonHistoryView pigeonHistoryView,
         TransferView transferView,
         FlightResultsView flightResultsView,
+        RankingView rankingView,
+        SponsorView sponsorView,
         DataView dataView,
         IAutoBidService autoBidService)
     {
@@ -47,17 +60,24 @@ public partial class MainWindow : Window
         this.trackerDataReader = trackerDataReader;
         this.breedingDataReader = breedingDataReader;
         this.flightResultIngester = flightResultIngester;
+        this.foodDistributionIngester = foodDistributionIngester;
+        this.sponsorIngester = sponsorIngester;
+        this.pigeonOverviewReader = pigeonOverviewReader;
         this.settings = settings;
         this.connectionView = connectionView;
         this.pigeonHistoryView = pigeonHistoryView;
         this.transferView = transferView;
         this.flightResultsView = flightResultsView;
+        this.rankingView = rankingView;
+        this.sponsorView = sponsorView;
         this.autoBidService = autoBidService;
         this.dataView = dataView;
         ConnectionHost.Content = connectionView;
         HistoryHost.Content = pigeonHistoryView;
         TransferHost.Content = transferView;
         FlightsHost.Content = flightResultsView;
+        RankingHost.Content = rankingView;
+        SponsorHost.Content = sponsorView;
         DataHost.Content = dataView;
         sessionState.Changed += SessionState_Changed;
         syncCoordinator.ProgressChanged += SyncCoordinator_ProgressChanged;
@@ -170,6 +190,8 @@ public partial class MainWindow : Window
             settings.Save();
         }
 
+        overviewLoaded = false;
+        breedingLoaded = false;
         await RefreshDataAsync();
         await pigeonHistoryView.RefreshAsync();
         await transferView.RefreshAsync();
@@ -181,12 +203,21 @@ public partial class MainWindow : Window
             {
                 SyncStatusText.Text = "Vluchten ophalen...";
                 await flightResultIngester.IngestAsync(fid);
+                SyncStatusText.Text = "Voedergegevens verwerken...";
+                await foodDistributionIngester.BackfillAsync(fid);
+                await foodDistributionIngester.IngestAsync(fid);
+                SyncStatusText.Text = "Sponsorgegevens verwerken...";
+                await sponsorIngester.BackfillAsync(fid);
+                await sponsorIngester.IngestAsync(fid);
                 SyncStatusText.Text = result.Status;
             }
         }
         catch
         {
         }
+
+        await flightResultsView.RefreshAsync();
+        await rankingView.RefreshAsync();
     }
 
     private void SyncCoordinator_ProgressChanged(object? sender, SyncProgress progress)
@@ -277,7 +308,7 @@ public partial class MainWindow : Window
                 : "—";
             FancierLocationText.Text = data.LocationName ?? "";
 
-            _ = LoadBreedingAnalysisAsync(fancierId);
+            breedingLoaded = false;
         }
         catch (Exception exception)
         {
@@ -285,9 +316,23 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task LoadBreedingAnalysisAsync(int fancierId)
+    private async Task LoadBreedingAnalysisAsync(int? selectedFancierId)
     {
-        BreedingStatusText.Text = "Fokgegevens worden geladen...";
+        if (selectedFancierId is not int fancierId)
+        {
+            BreedingStatusText.Text = "Selecteer een melker en voer een sync uit.";
+            BreedingPairGrid.ItemsSource = null;
+            InbreedingGrid.ItemsSource = null;
+            BreedingPairCountText.Text = "—";
+            FlockInbreedingText.Text = "—";
+            PedigreeCountText.Text = "—";
+            return;
+        }
+
+        var isOnline = sessionState.Current.State is SessionState.AuthenticatedReady;
+        BreedingStatusText.Text = isOnline
+            ? "Fokgegevens worden geladen (stamboom- en nakomelingdata worden opgehaald)..."
+            : "Fokgegevens worden geladen vanuit cache (niet aangemeld, alleen gecachte data beschikbaar)...";
         BreedingPairGrid.ItemsSource = null;
         InbreedingGrid.ItemsSource = null;
         BreedingPairCountText.Text = "—";
@@ -297,6 +342,7 @@ public partial class MainWindow : Window
         try
         {
             var data = await breedingDataReader.GetBreedingAnalysisAsync(fancierId);
+            breedingLoaded = true;
             BreedingPairGrid.ItemsSource = data.PairPerformance;
             InbreedingGrid.ItemsSource = data.InbreedingReport;
             BreedingPairCountText.Text = data.PairPerformance.Count.ToString(CultureInfo.CurrentCulture);
@@ -305,9 +351,19 @@ public partial class MainWindow : Window
                 : "0%";
             PedigreeCountText.Text = data.InbreedingReport.Count(i => i.LineageDepth > 0)
                 .ToString(CultureInfo.CurrentCulture);
-            BreedingStatusText.Text = data.PairPerformance.Count == 0 && data.InbreedingReport.Count == 0
-                ? "Geen fokgegevens beschikbaar. Zorg dat er koppels en stamboomgegevens zijn."
-                : "";
+
+            if (data.PairPerformance.Count == 0 && data.InbreedingReport.Count == 0)
+            {
+                BreedingStatusText.Text = isOnline
+                    ? "Geen fokgegevens beschikbaar. Zorg dat er koppels en stamboomgegevens zijn."
+                    : "Geen fokgegevens beschikbaar. Meld je aan en ververs om live data op te halen.";
+            }
+            else
+            {
+                BreedingStatusText.Text = !isOnline
+                    ? "Weergave op basis van gecachte data. Meld je aan en ververs voor actuele gegevens."
+                    : "";
+            }
         }
         catch (Exception ex)
         {
@@ -326,6 +382,18 @@ public partial class MainWindow : Window
         _ = flightResultsView.RefreshAsync();
     }
 
+    private void OpenRanking_Click(object sender, RoutedEventArgs e)
+    {
+        SetPage(RankingPage);
+        _ = rankingView.RefreshAsync();
+    }
+
+    private void OpenSponsors_Click(object sender, RoutedEventArgs e)
+    {
+        SetPage(SponsorPage);
+        _ = sponsorView.RefreshAsync();
+    }
+
     private void SetPage(UIElement page)
     {
         DashboardPage.Visibility = page == DashboardPage ? Visibility.Visible : Visibility.Collapsed;
@@ -333,12 +401,16 @@ public partial class MainWindow : Window
         HistoryPage.Visibility = page == HistoryPage ? Visibility.Visible : Visibility.Collapsed;
         TransferPage.Visibility = page == TransferPage ? Visibility.Visible : Visibility.Collapsed;
         FlightsPage.Visibility = page == FlightsPage ? Visibility.Visible : Visibility.Collapsed;
+        RankingPage.Visibility = page == RankingPage ? Visibility.Visible : Visibility.Collapsed;
+        SponsorPage.Visibility = page == SponsorPage ? Visibility.Visible : Visibility.Collapsed;
         DataPage.Visibility = page == DataPage ? Visibility.Visible : Visibility.Collapsed;
         DashboardNavButton.FontWeight = page == DashboardPage ? FontWeights.SemiBold : FontWeights.Normal;
         ConnectionNavButton.FontWeight = page == ConnectionPage ? FontWeights.SemiBold : FontWeights.Normal;
         HistoryNavButton.FontWeight = page == HistoryPage ? FontWeights.SemiBold : FontWeights.Normal;
         TransferNavButton.FontWeight = page == TransferPage ? FontWeights.SemiBold : FontWeights.Normal;
         FlightsNavButton.FontWeight = page == FlightsPage ? FontWeights.SemiBold : FontWeights.Normal;
+        RankingNavButton.FontWeight = page == RankingPage ? FontWeights.SemiBold : FontWeights.Normal;
+        SponsorNavButton.FontWeight = page == SponsorPage ? FontWeights.SemiBold : FontWeights.Normal;
         DataNavButton.FontWeight = page == DataPage ? FontWeights.SemiBold : FontWeights.Normal;
     }
 
@@ -395,6 +467,92 @@ public partial class MainWindow : Window
         ColIntelligence.Visibility = vis;
         ColLibido.Visibility = vis;
         ColNightvision.Visibility = vis;
+    }
+
+    private void DashboardTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source is not TabControl || e.AddedItems.Count == 0
+            || e.AddedItems[0] is not TabItem tab || tab.Header is not string header)
+            return;
+
+        if (!overviewLoaded && header.Contains("historisch", StringComparison.OrdinalIgnoreCase))
+        {
+            _ = RefreshOverviewAsync();
+        }
+        else if (!breedingLoaded && header.Contains("Fokanalyse", StringComparison.OrdinalIgnoreCase))
+        {
+            _ = LoadBreedingAnalysisAsync(sessionState.Current.SelectedFancier?.Id);
+        }
+    }
+
+    private void RefreshOverview_Click(object sender, RoutedEventArgs e) => _ = RefreshOverviewAsync();
+
+    private void RefreshBreeding_Click(object sender, RoutedEventArgs e)
+    {
+        breedingLoaded = false;
+        _ = LoadBreedingAnalysisAsync(sessionState.Current.SelectedFancier?.Id);
+    }
+
+    private async Task RefreshOverviewAsync()
+    {
+        var selectedFancierId = sessionState.Current.SelectedFancier?.Id;
+        if (selectedFancierId is not int fancierId)
+        {
+            allOverviewPigeons = null;
+            OverviewPigeonGrid.ItemsSource = null;
+            OverviewMessageText.Text = "Selecteer een melker en voer een sync uit om historische data te laden.";
+            OverviewPigeonCountText.Text = "—";
+            OverviewObservationCountText.Text = "—";
+            OverviewOldestText.Text = "—";
+            OverviewNewestText.Text = "—";
+            return;
+        }
+
+        try
+        {
+            OverviewMessageText.Text = "Historisch overzicht laden…";
+            var data = await pigeonOverviewReader.GetOverviewAsync(fancierId);
+            allOverviewPigeons = data.Pigeons;
+            overviewLoaded = true;
+            ApplyOverviewFilter();
+            OverviewMessageText.Text = data.Pigeons.Count == 0
+                ? "Geen duivengegevens gevonden in de lokale momentopnames. Voer eerst een sync uit."
+                : $"{data.Pigeons.Count} duif(en) uit {data.TotalObservations} waarnemingen over alle momentopnames. Pijlen vergelijken met de vorige wijziging.";
+            OverviewPigeonCountText.Text = data.Pigeons.Count.ToString(CultureInfo.CurrentCulture);
+            OverviewObservationCountText.Text = data.TotalObservations.ToString(CultureInfo.CurrentCulture);
+            OverviewOldestText.Text = data.OldestSnapshot?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? "—";
+            OverviewNewestText.Text = data.NewestSnapshot?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? "—";
+        }
+        catch (Exception exception)
+        {
+            OverviewMessageText.Text = $"Historisch overzicht kon niet worden geladen: {exception.Message}";
+        }
+    }
+
+    private void OverviewSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplyOverviewFilter();
+    }
+
+    private void ApplyOverviewFilter()
+    {
+        if (allOverviewPigeons is null)
+        {
+            OverviewPigeonGrid.ItemsSource = null;
+            return;
+        }
+
+        var search = OverviewSearchBox.Text?.Trim();
+        if (string.IsNullOrEmpty(search))
+        {
+            OverviewPigeonGrid.ItemsSource = allOverviewPigeons;
+        }
+        else
+        {
+            OverviewPigeonGrid.ItemsSource = allOverviewPigeons
+                .Where(p => p.DisplayName?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+        }
     }
 
     protected override void OnClosed(EventArgs e)

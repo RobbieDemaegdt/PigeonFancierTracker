@@ -11,7 +11,10 @@ public static class SyncEndpointCatalog
 {
     public static IReadOnlyList<SyncEndpoint> ForProfile(
         SyncProfile profile,
-        int selectedFancierId)
+        int selectedFancierId,
+        int? season = null,
+        int? department = null,
+        IReadOnlyList<int>? activeFlightIds = null)
     {
         var quick = new List<SyncEndpoint>
         {
@@ -48,10 +51,81 @@ public static class SyncEndpointCatalog
                 ["processed"] = "true",
                 ["fancierId"] = selectedFancierId.ToString(),
             }),
-            new("/api/ranking"),
-            new("/api/flight", Optional: true),
-            new("/api/flight/live", Optional: true),
         ]);
+
+        if (season is not null && department is not null)
+        {
+            var s = season.Value.ToString();
+            var d = department.Value.ToString();
+
+            quick.Add(new("/api/flight", new Dictionary<string, string?>
+            {
+                ["season"] = s,
+                ["department"] = d,
+                ["public"] = "false",
+                ["status"] = "notStarted",
+            }, Optional: true));
+
+            quick.Add(new("/api/flight", new Dictionary<string, string?>
+            {
+                ["season"] = s,
+                ["department"] = d,
+                ["public"] = "false",
+                ["status"] = "started",
+            }, Optional: true));
+
+            quick.Add(new("/api/flight", new Dictionary<string, string?>
+            {
+                ["season"] = s,
+                ["department"] = d,
+                ["public"] = "false",
+                ["status"] = "ended",
+            }, Optional: true));
+
+            quick.Add(new("/api/flight/live", new Dictionary<string, string?>
+            {
+                ["season"] = s,
+                ["department"] = d,
+                ["public"] = "false",
+            }, Optional: true));
+
+            foreach (var (type, rankingType) in new[]
+            {
+                ("fanciers", "regional"),
+                ("pigeons", "regional"),
+                ("fanciers", "national"),
+                ("pigeons", "national"),
+            })
+            {
+                quick.Add(new("/api/ranking", new Dictionary<string, string?>
+                {
+                    ["activeSort"] = "position",
+                    ["sortDirection"] = "asc",
+                    ["season"] = s,
+                    ["type"] = type,
+                    ["ageType"] = "elder",
+                    ["rankingType"] = rankingType,
+                    ["department"] = d,
+                    ["page"] = "1",
+                    ["pageSize"] = "500",
+                }));
+            }
+        }
+        else
+        {
+            quick.Add(new("/api/flight", new Dictionary<string, string?> { ["status"] = "notStarted" }, Optional: true));
+            quick.Add(new("/api/flight", new Dictionary<string, string?> { ["status"] = "started" }, Optional: true));
+            quick.Add(new("/api/flight", new Dictionary<string, string?> { ["status"] = "ended" }, Optional: true));
+            quick.Add(new("/api/flight/live", Optional: true));
+        }
+
+        if (activeFlightIds is { Count: > 0 })
+        {
+            foreach (var flightId in activeFlightIds)
+            {
+                quick.Add(new($"/api/flight/{flightId}/results", Optional: true));
+            }
+        }
 
         return quick;
     }

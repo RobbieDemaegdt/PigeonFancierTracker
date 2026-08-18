@@ -183,9 +183,15 @@ public sealed record LoftPenPurchaseAction(
     decimal UnitPrice,
     decimal TotalCost);
 
+public sealed record BarnUpgradeAction(
+    string CurrentTier,
+    int CurrentSize,
+    string Reason);
+
 public sealed record LoftManagementPlan(
     LoftCleanAction? CleanAction,
     LoftPenPurchaseAction? PenPurchaseAction,
+    BarnUpgradeAction? BarnUpgrade,
     int CurrentCapacity,
     int CurrentOccupied,
     double OccupancyPercent,
@@ -196,6 +202,7 @@ public interface ILoftManager
 {
     Task<LoftManagementPlan> BuildLoftPlanAsync(
         int fancierId,
+        bool barnUpgradeEnabled = false,
         CancellationToken cancellationToken = default);
 
     Task ExecuteLoftPlanAsync(

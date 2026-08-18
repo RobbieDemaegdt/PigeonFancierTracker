@@ -14,6 +14,8 @@ public sealed class DataResetter(
         await db.Database.ExecuteSqlRawAsync("DELETE FROM \"SyncRunItems\"", cancellationToken);
         await db.Database.ExecuteSqlRawAsync("DELETE FROM \"SyncRuns\"", cancellationToken);
         await db.Database.ExecuteSqlRawAsync("DELETE FROM \"RawApiSnapshots\"", cancellationToken);
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM \"FoodDistributionSnapshots\"", cancellationToken);
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM \"SponsorSnapshots\"", cancellationToken);
         await credentialStore.ClearAsync();
     }
 }

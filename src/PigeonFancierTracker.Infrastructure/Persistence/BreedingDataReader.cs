@@ -27,40 +27,41 @@ public sealed class BreedingDataReader(
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         var couples = await LoadCouplesAsync(db, fancierId, cancellationToken);
 
-        var pairPerformance = new List<OffspringPerformanceItem>();
-        var breedingPairs = new List<OffspringPerformanceCalculator.BreedingPairInput>();
-
-        foreach (var couple in couples)
-        {
-            if (couple.CockId is not int cockId || couple.HenId is not int henId)
-                continue;
-
-            var cockName = pigeonMap.TryGetValue(cockId, out var cock) ? cock.DisplayName : $"Duif #{cockId}";
-            var henName = pigeonMap.TryGetValue(henId, out var hen) ? hen.DisplayName : $"Duif #{henId}";
-
-            var offspring = await pedigreeDataFetcher.GetOffspringAsync(cockId, cancellationToken);
-            var offspringSkills = offspring
-                .Where(o => o.Skills?.Total is not null)
-                .Select(o => (o.Skills!.Total ?? 0) + 6)
-                .ToList();
-
-            if (offspringSkills.Count > 0)
+        var coupleTasks = couples
+            .Where(c => c.CockId is not null && c.HenId is not null)
+            .Select(async couple =>
             {
-                breedingPairs.Add(new OffspringPerformanceCalculator.BreedingPairInput(
-                    cockName, cockId, cock?.TotalSkill, henName, henId, hen?.TotalSkill, offspringSkills));
-            }
-        }
+                var cockId = couple.CockId!.Value;
+                var henId = couple.HenId!.Value;
+                var cockName = pigeonMap.TryGetValue(cockId, out var cock) ? cock.DisplayName : $"Duif #{cockId}";
+                var henName = pigeonMap.TryGetValue(henId, out var hen) ? hen.DisplayName : $"Duif #{henId}";
 
-        pairPerformance = OffspringPerformanceCalculator.Calculate(breedingPairs).ToList();
+                var offspring = await pedigreeDataFetcher.GetOffspringAsync(cockId, cancellationToken);
+                var offspringSkills = offspring
+                    .Where(o => o.Skills?.Total is not null)
+                    .Select(o => (o.Skills!.Total ?? 0) + 6)
+                    .ToList();
 
-        var inbreedingReport = new List<InbreedingInfo>();
-        foreach (var pigeon in dashboard.Pigeons)
-        {
-            if (pigeon.SourceId is not int id) continue;
+                return new OffspringPerformanceCalculator.BreedingPairInput(
+                    cockName, cockId, cock?.TotalSkill, henName, henId, hen?.TotalSkill,
+                    offspring.Count, offspringSkills);
+            })
+            .ToList();
 
-            var pedigree = await pedigreeDataFetcher.GetPedigreeAsync(id, cancellationToken);
-            inbreedingReport.Add(InbreedingCalculator.Calculate(id, pigeon.DisplayName, pedigree));
-        }
+        var breedingPairs = (await Task.WhenAll(coupleTasks)).ToList();
+        var pairPerformance = OffspringPerformanceCalculator.Calculate(breedingPairs).ToList();
+
+        var pedigreeTasks = dashboard.Pigeons
+            .Where(p => p.SourceId.HasValue)
+            .Select(async pigeon =>
+            {
+                var id = pigeon.SourceId!.Value;
+                var pedigree = await pedigreeDataFetcher.GetPedigreeAsync(id, cancellationToken);
+                return InbreedingCalculator.Calculate(id, pigeon.DisplayName, pedigree);
+            })
+            .ToList();
+
+        var inbreedingReport = (await Task.WhenAll(pedigreeTasks)).ToList();
 
         var flockAvg = inbreedingReport.Count > 0
             ? Math.Round(inbreedingReport.Average(i => i.InbreedingCoefficient), 4)

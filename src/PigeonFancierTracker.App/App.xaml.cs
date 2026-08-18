@@ -33,6 +33,8 @@ public partial class App : Application
 				services.AddTransient<PigeonHistoryView>();
 				services.AddTransient<TransferView>();
 				services.AddTransient<FlightResultsView>();
+				services.AddTransient<RankingView>();
+				services.AddTransient<SponsorView>();
 				services.AddTransient<DataView>();
 				services.AddSingleton<MainWindow>();
 			})

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PigeonFancierTracker.Core.Contracts;
 using PigeonFancierTracker.Core.Domain;
@@ -59,7 +60,9 @@ public sealed class SyncCoordinator(
 
         var startedAt = DateTimeOffset.UtcNow;
         var syncRunId = await CreateSyncRunAsync(profile, selectedFancierId, startedAt, runCancellation.Token);
-        var endpoints = SyncEndpointCatalog.ForProfile(profile, selectedFancierId);
+        var (season, department) = await ReadSeasonAndDepartmentAsync(selectedFancierId, runCancellation.Token);
+        var activeFlightIds = await ReadActiveFlightIdsAsync(selectedFancierId, runCancellation.Token);
+        var endpoints = SyncEndpointCatalog.ForProfile(profile, selectedFancierId, season, department, activeFlightIds);
         var results = new ConcurrentBag<SyncEndpointResult>();
         var completedEndpoints = 0;
         var sessionExpired = 0;
@@ -103,6 +106,14 @@ public sealed class SyncCoordinator(
             catch (OperationCanceledException) when (runCancellation.IsCancellationRequested)
             {
                 // The run is recorded as cancelled below. Completed endpoint results remain persisted.
+            }
+
+            if (!runCancellation.IsCancellationRequested && profile != SyncProfile.Quick)
+            {
+                await FetchNewlyDiscoveredFlightResultsAsync(
+                    syncRunId, selectedFancierId, activeFlightIds,
+                    results, concurrency, runCancellation,
+                    () => Interlocked.Increment(ref sessionExpired));
             }
 
             var completedAt = DateTimeOffset.UtcNow;
@@ -349,6 +360,155 @@ public sealed class SyncCoordinator(
         var backoffMilliseconds = Math.Min(4_000, 500 * Math.Pow(2, attempt - 1));
         var jitterMilliseconds = Random.Shared.Next(0, 250);
         await Task.Delay(TimeSpan.FromMilliseconds(backoffMilliseconds + jitterMilliseconds), cancellationToken);
+    }
+
+    private async Task<(int? Season, int? Department)> ReadSeasonAndDepartmentAsync(
+        int fancierId, CancellationToken ct)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(ct);
+
+        int? season = null;
+        var seasonSnapshot = await db.RawApiSnapshots
+            .AsNoTracking()
+            .Where(x => x.Endpoint == "/api/season"
+                && x.StatusCode >= 200 && x.StatusCode < 300)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (seasonSnapshot is not null)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(seasonSnapshot.ResponseBodyJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in doc.RootElement.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("active", out var active) && active.GetBoolean()
+                            && item.TryGetProperty("id", out var id))
+                        {
+                            season = id.GetInt32();
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (JsonException) { }
+        }
+
+        int? department = null;
+        var fancierSnapshot = await db.RawApiSnapshots
+            .AsNoTracking()
+            .Where(x => x.SelectedFancierId == fancierId
+                && x.Endpoint == "/api/fancier/selected"
+                && x.StatusCode >= 200 && x.StatusCode < 300)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (fancierSnapshot is not null)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(fancierSnapshot.ResponseBodyJson);
+                if (doc.RootElement.TryGetProperty("department", out var dept)
+                    && dept.TryGetInt32(out var deptVal))
+                {
+                    department = deptVal;
+                }
+            }
+            catch (JsonException) { }
+        }
+
+        return (season, department);
+    }
+
+    private async Task<IReadOnlyList<int>> ReadActiveFlightIdsAsync(int fancierId, CancellationToken ct)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(ct);
+
+        var liveSnapshot = await db.RawApiSnapshots
+            .AsNoTracking()
+            .Where(x => x.SelectedFancierId == fancierId
+                && x.Endpoint == "/api/flight/live"
+                && x.StatusCode >= 200 && x.StatusCode < 300)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (liveSnapshot is null)
+        {
+            var flightSnapshot = await db.RawApiSnapshots
+                .AsNoTracking()
+                .Where(x => x.SelectedFancierId == fancierId
+                    && x.Endpoint == "/api/flight"
+                    && x.StatusCode >= 200 && x.StatusCode < 300)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync(ct);
+
+            liveSnapshot = flightSnapshot;
+        }
+
+        if (liveSnapshot is null) return [];
+
+        try
+        {
+            using var doc = JsonDocument.Parse(liveSnapshot.ResponseBodyJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return [];
+
+            var ids = new List<int>();
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                if (item.TryGetProperty("status", out var status)
+                    && status.GetString() is "started"
+                    && item.TryGetProperty("id", out var id)
+                    && id.TryGetInt32(out var flightId))
+                {
+                    ids.Add(flightId);
+                }
+            }
+
+            return ids;
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private async Task FetchNewlyDiscoveredFlightResultsAsync(
+        long syncRunId,
+        int selectedFancierId,
+        IReadOnlyList<int> previousActiveFlightIds,
+        ConcurrentBag<SyncEndpointResult> results,
+        SemaphoreSlim concurrency,
+        CancellationTokenSource runCancellation,
+        Action onSessionExpired)
+    {
+        var currentActiveFlightIds = await ReadActiveFlightIdsAsync(selectedFancierId, runCancellation.Token);
+        var newFlightIds = currentActiveFlightIds
+            .Where(id => !previousActiveFlightIds.Contains(id))
+            .ToList();
+
+        if (newFlightIds.Count == 0) return;
+
+        var extraEndpoints = newFlightIds
+            .Select(id => new SyncEndpoint($"/api/flight/{id}/results", Optional: true))
+            .ToList();
+
+        foreach (var endpoint in extraEndpoints)
+        {
+            await concurrency.WaitAsync(runCancellation.Token);
+            try
+            {
+                var result = await ExecuteEndpointAsync(
+                    syncRunId, endpoint, selectedFancierId,
+                    runCancellation, onSessionExpired);
+                results.Add(result);
+            }
+            finally
+            {
+                concurrency.Release();
+            }
+        }
     }
 
     private void RaiseProgress(SyncProgress progress)

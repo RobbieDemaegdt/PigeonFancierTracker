@@ -112,3 +112,16 @@ public interface ITrackerDataReader
         int? pigeonId = null,
         CancellationToken cancellationToken = default);
     }
+
+public sealed record PigeonOverviewData(
+    IReadOnlyList<PigeonListItem> Pigeons,
+    int TotalObservations,
+    DateTimeOffset? OldestSnapshot,
+    DateTimeOffset? NewestSnapshot);
+
+public interface IPigeonOverviewReader
+{
+    Task<PigeonOverviewData> GetOverviewAsync(
+        int fancierId,
+        CancellationToken cancellationToken = default);
+}
