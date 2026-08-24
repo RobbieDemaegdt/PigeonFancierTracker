@@ -6,45 +6,108 @@
         mc:Ignorable="d"
         Title="Duivenmelker Tracker" Height="820" Width="1480" MinHeight="620" MinWidth="1180">
     <Grid Background="{DynamicResource PageBackgroundBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="216" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="{DynamicResource HeaderBrush}" Padding="28,18">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Left">
-                    <TextBlock Text="Duivenmelker Tracker" Foreground="White" FontSize="25" FontWeight="SemiBold" />
-                    <TextBlock Text="Alleen-lezen lokale assistent" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="13" Margin="0,3,0,0" />
+        <Border Grid.Column="0" Grid.RowSpan="2" Background="{DynamicResource HeaderBrush}" Padding="16,20">
+            <Border.Resources>
+                <Style x:Key="SidebarButtonStyle" TargetType="Button">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="HorizontalContentAlignment" Value="Left" />
+                    <Setter Property="Padding" Value="12,9" />
+                    <Setter Property="Margin" Value="0,1" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#24FFFFFF" />
+                                    </Trigger>
+                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                        <Setter Property="Background" Value="#24FFFFFF" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Border.Resources>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Duivenmelker" Foreground="White" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="Tracker" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="15" />
+                    <Border Background="#1FFFFFFF" CornerRadius="4" Padding="7,3" HorizontalAlignment="Left" Margin="0,10,0,0">
+                        <TextBlock Text="ALLEEN LEZEN" Foreground="White" FontSize="10" FontWeight="SemiBold" />
+                    </Border>
                 </StackPanel>
-                <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
-                    <DockPanel>
-                        <TextBlock x:Name="SessionStatusText" DockPanel.Dock="Left" Text="Verbind je account" Foreground="White" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Right" />
-                        <Button x:Name="ThemeToggleButton" DockPanel.Dock="Right" Content="&#x263D; Donker thema"
-                                Style="{StaticResource ThemeToggleButtonStyle}" Click="ThemeToggle_Click" Margin="14,0,0,0" />
-                    </DockPanel>
-                    <TextBlock x:Name="HeaderFancierText" Text="Geen melker geselecteerd" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="11" HorizontalAlignment="Right" Margin="0,2,0,0" />
-                    <TextBlock x:Name="HeaderSeasonText" Text="" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="11" HorizontalAlignment="Right" Margin="0,2,0,0" />
-                    <TextBlock x:Name="SyncStatusText" Text="Sync inactief" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="11" HorizontalAlignment="Right" Margin="0,2,0,0" />
-                </StackPanel>
-            </DockPanel>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,24,0,12">
+                    <StackPanel>
+                        <TextBlock Text="OVERZICHT" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="10" FontWeight="SemiBold" Margin="12,0,0,5" />
+                        <Button x:Name="DashboardNavButton" Content="Hokoverzicht" Style="{StaticResource SidebarButtonStyle}" Click="OpenDashboard_Click" IsDefault="True" Background="#2EFFFFFF" FontWeight="SemiBold" />
+
+                        <TextBlock Text="DUIVEN" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="10" FontWeight="SemiBold" Margin="12,18,0,5" />
+                        <Button x:Name="HistoryNavButton" Content="Duivengeschiedenis" Style="{StaticResource SidebarButtonStyle}" Click="OpenPigeonHistory_Click" />
+
+                        <TextBlock Text="WEDSTRIJDEN" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="10" FontWeight="SemiBold" Margin="12,18,0,5" />
+                        <Button x:Name="FlightsNavButton" Content="Vluchten" Style="{StaticResource SidebarButtonStyle}" Click="OpenFlights_Click" />
+                        <Button x:Name="RankingNavButton" Content="Klassement" Style="{StaticResource SidebarButtonStyle}" Click="OpenRanking_Click" />
+
+                        <TextBlock Text="MARKT &amp; INKOMEN" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="10" FontWeight="SemiBold" Margin="12,18,0,5" />
+                        <Button x:Name="TransferNavButton" Content="Transfers" Style="{StaticResource SidebarButtonStyle}" Click="OpenTransfers_Click" />
+                        <Button x:Name="SponsorNavButton" Content="Sponsoring" Style="{StaticResource SidebarButtonStyle}" Click="OpenSponsors_Click" />
+
+                        <TextBlock Text="SYSTEEM" Foreground="{DynamicResource HeaderSubtitleBrush}" FontSize="10" FontWeight="SemiBold" Margin="12,18,0,5" />
+                        <Button x:Name="ConnectionNavButton" Content="Verbinding" Style="{StaticResource SidebarButtonStyle}" Click="OpenConnection_Click" />
+                        <Button x:Name="DataNavButton" Content="Gegevens &amp; instellingen" Style="{StaticResource SidebarButtonStyle}" Click="OpenData_Click" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Button x:Name="ThemeToggleButton" Grid.Row="2" Content="&#x263D; Donker thema"
+                        Style="{StaticResource ThemeToggleButtonStyle}" Click="ThemeToggle_Click" HorizontalAlignment="Left" />
+            </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,0">
-            <StackPanel Orientation="Horizontal">
-                <Button x:Name="DashboardNavButton" Content="Dashboard" Style="{StaticResource NavigationButtonStyle}" Click="OpenDashboard_Click" IsDefault="True" />
-                <Button x:Name="ConnectionNavButton" Content="Verbinding" Style="{StaticResource NavigationButtonStyle}" Click="OpenConnection_Click" />
-                <Button x:Name="HistoryNavButton" Content="Duivengeschiedenis" Style="{StaticResource NavigationButtonStyle}" Click="OpenPigeonHistory_Click" />
-                <Button x:Name="TransferNavButton" Content="Transfers" Style="{StaticResource NavigationButtonStyle}" Click="OpenTransfers_Click" />
-                <Button x:Name="FlightsNavButton" Content="Vluchten" Style="{StaticResource NavigationButtonStyle}" Click="OpenFlights_Click" />
-                <Button x:Name="RankingNavButton" Content="Klassement" Style="{StaticResource NavigationButtonStyle}" Click="OpenRanking_Click" />
-                <Button x:Name="SponsorNavButton" Content="Sponsoring" Style="{StaticResource NavigationButtonStyle}" Click="OpenSponsors_Click" />
-                <Button x:Name="DataNavButton" Content="Gegevens" Style="{StaticResource NavigationButtonStyle}" Click="OpenData_Click" />
-            </StackPanel>
+        <Border Grid.Column="1" Grid.Row="0" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,13">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="ShellPageTitle" Text="Hokoverzicht" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock x:Name="ShellPageSubtitle" Text="Lokale gegevens voor de geselecteerde melker" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,2,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock x:Name="SessionStatusText" Text="Verbind je account" Foreground="{DynamicResource HeadingTextBrush}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+                        <TextBlock x:Name="HeaderFancierText" Text="Geen melker geselecteerd" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="HeaderSeasonText" Text="" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="10,0,0,0" />
+                        <TextBlock x:Name="SyncStatusText" Text="Sync inactief" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="10,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <Grid Grid.Row="2">
+        <Grid Grid.Column="1" Grid.Row="1">
             <Grid x:Name="DashboardPage" Visibility="Visible">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
@@ -76,8 +139,6 @@
                                                 <TextBlock x:Name="DataMessageText" Text="Selecteer een melker en voer een sync uit om lokale data te laden." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                             </StackPanel>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-                                                <ToggleButton x:Name="ShowAllColumnsToggle" Content="Alle vaardigheden"
-                                                              Style="{StaticResource ColumnToggleButtonStyle}" Checked="ShowAllColumns_Changed" Unchecked="ShowAllColumns_Changed" Margin="0,0,8,0" />
                                                 <Button Content="Lokale data verversen" Style="{StaticResource SecondaryButtonStyle}" Click="RefreshData_Click" />
                                             </StackPanel>
                                         </DockPanel>
@@ -90,34 +151,54 @@
                                             <StackPanel><TextBlock Text="Laatst vastgelegd" Foreground="{DynamicResource MutedTextBrush}" /><TextBlock x:Name="DataLastCapturedText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
                                         </UniformGrid>
 
-                                        <TextBox x:Name="PigeonSearchBox" Style="{StaticResource SearchTextBoxStyle}" Margin="0,0,0,10" TextChanged="PigeonSearchBox_TextChanged" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="5*" MinWidth="500" />
+                                                <ColumnDefinition Width="16" />
+                                                <ColumnDefinition Width="3*" MinWidth="280" />
+                                            </Grid.ColumnDefinitions>
 
-                                        <DataGrid x:Name="PigeonGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="180" MaxHeight="600" GridLinesVisibility="Horizontal">
-                                            <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Duif" Binding="{Binding DisplayName}" Width="1.5*" />
-                                                <DataGridTextColumn Header="Gesl" Binding="{Binding Sex}" Width="50" />
-                                                <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age}" Width="70" />
-                                                <DataGridTextColumn Header="Ras" Binding="{Binding Breed}" Width="80" />
-                                                <DataGridTextColumn Header="&#x2665;" Binding="{Binding BreedingMark}" Width="30" />
-                                                <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="65" />
-                                                <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="55" />
-                                                <DataGridTextColumn Header="Mid" Binding="{Binding MediumDisplay}" Width="55" />
-                                                <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="55" />
-                                                <DataGridTextColumn x:Name="ColForm" Header="Vorm" Binding="{Binding FormDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColExperience" Header="Ervaring" Binding="{Binding ExperienceDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColStamina" Header="Conditie" Binding="{Binding StaminaDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColSpeed" Header="Snelheid" Binding="{Binding SpeedDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColNavigation" Header="Navigatie" Binding="{Binding NavigationDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColTechnique" Header="Techniek" Binding="{Binding TechniqueDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColAerodynamics" Header="Aerodyn." Binding="{Binding AerodynamicsDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColIntelligence" Header="Intell." Binding="{Binding IntelligenceDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColLibido" Header="Libido" Binding="{Binding LibidoDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn x:Name="ColNightvision" Header="Nachtzicht" Binding="{Binding NightvisionDisplay}" Width="60" Visibility="Collapsed" />
-                                                <DataGridTextColumn Header="Ziekte" Binding="{Binding Disease}" Width="75" />
-                                                <DataGridTextColumn Header="Verdiensten" Binding="{Binding EarningsDisplay}" Width="110" />
-                                                <DataGridTextColumn Header="Vaard &#x0394;" Binding="{Binding SkillChange, StringFormat={}{0:+0;-0;—}}" Width="65" />
-                                            </DataGrid.Columns>
-                                        </DataGrid>
+                                            <StackPanel>
+                                                <TextBox x:Name="PigeonSearchBox" Style="{StaticResource SearchTextBoxStyle}" Margin="0,0,0,10" TextChanged="PigeonSearchBox_TextChanged" />
+                                                <DataGrid x:Name="PigeonGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                                                          HeadersVisibility="Column" MinHeight="280" MaxHeight="600" GridLinesVisibility="Horizontal"
+                                                          SelectionMode="Single" SelectionChanged="PigeonGrid_SelectionChanged" Cursor="Hand">
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="Duif" Binding="{Binding DisplayName}" Width="*" MinWidth="120" />
+                                                        <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age}" Width="68" />
+                                                        <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="58" />
+                                                        <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="52" />
+                                                        <DataGridTextColumn Header="Mid" Binding="{Binding MediumDisplay}" Width="52" />
+                                                        <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="52" />
+                                                        <DataGridTextColumn Header="Gezondheid" Binding="{Binding Disease, TargetNullValue=—}" Width="82" />
+                                                        <DataGridTextColumn Header="Δ" Binding="{Binding SkillChange, StringFormat={}{0:+0;-0;—}}" Width="44" />
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </StackPanel>
+
+                                            <Border Grid.Column="2" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="18">
+                                                <StackPanel>
+                                                    <TextBlock Text="Geselecteerde duif" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" FontWeight="SemiBold" />
+                                                    <TextBlock x:Name="PigeonDetailTitleText" Text="Selecteer een duif" Foreground="{DynamicResource HeadingTextBrush}" FontSize="20" FontWeight="SemiBold" Margin="0,5,0,0" TextWrapping="Wrap" />
+                                                    <TextBlock x:Name="PigeonDetailIdentityText" Text="De eerste beschikbare duif wordt automatisch geselecteerd." Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,4,0,14" TextWrapping="Wrap" />
+
+                                                    <TextBlock Text="Status" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                                    <TextBlock x:Name="PigeonDetailHealthText" Text="—" Foreground="{DynamicResource BodyTextBrush}" Margin="0,3,0,12" TextWrapping="Wrap" />
+
+                                                    <TextBlock Text="Wedstrijden" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                                    <TextBlock x:Name="PigeonDetailRaceText" Text="—" Foreground="{DynamicResource BodyTextBrush}" Margin="0,3,0,12" TextWrapping="Wrap" />
+
+                                                    <TextBlock Text="Waarde" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                                    <TextBlock x:Name="PigeonDetailFinanceText" Text="—" Foreground="{DynamicResource BodyTextBrush}" Margin="0,3,0,12" TextWrapping="Wrap" />
+
+                                                    <TextBlock Text="Vaardigheden" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                                                    <TextBlock x:Name="PigeonDetailSkillsText" Text="—" Foreground="{DynamicResource BodyTextBrush}" Margin="0,3,0,18" TextWrapping="Wrap" />
+
+                                                    <Button x:Name="OpenPigeonHistoryButton" Content="Volledige geschiedenis" Style="{StaticResource PrimaryButtonStyle}"
+                                                            Click="OpenSelectedPigeonHistory_Click" IsEnabled="False" HorizontalAlignment="Stretch" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </TabItem>
@@ -213,13 +294,13 @@
                 </ScrollViewer>
             </Grid>
 
-            <Border x:Name="ConnectionPage" Visibility="Collapsed" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="ConnectionHost" /></Border>
-            <Border x:Name="HistoryPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="HistoryHost" /></Border>
-            <Border x:Name="TransferPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="TransferHost" /></Border>
-            <Border x:Name="FlightsPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="FlightsHost" /></Border>
-            <Border x:Name="RankingPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="RankingHost" /></Border>
-            <Border x:Name="SponsorPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="SponsorHost" /></Border>
-            <Border x:Name="DataPage" Visibility="Collapsed" Background="{DynamicResource PageBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Margin="20"><ContentControl x:Name="DataHost" /></Border>
+            <Grid x:Name="ConnectionPage" Visibility="Collapsed"><ContentControl x:Name="ConnectionHost" /></Grid>
+            <Grid x:Name="HistoryPage" Visibility="Collapsed"><ContentControl x:Name="HistoryHost" /></Grid>
+            <Grid x:Name="TransferPage" Visibility="Collapsed"><ContentControl x:Name="TransferHost" /></Grid>
+            <Grid x:Name="FlightsPage" Visibility="Collapsed"><ContentControl x:Name="FlightsHost" /></Grid>
+            <Grid x:Name="RankingPage" Visibility="Collapsed"><ContentControl x:Name="RankingHost" /></Grid>
+            <Grid x:Name="SponsorPage" Visibility="Collapsed"><ContentControl x:Name="SponsorHost" /></Grid>
+            <Grid x:Name="DataPage" Visibility="Collapsed"><ContentControl x:Name="DataHost" /></Grid>
         </Grid>
     </Grid>
 </Window>

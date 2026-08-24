@@ -104,7 +104,12 @@ public sealed record FlightResultListItem(
     decimal AverageSpeed,
     string PigeonName,
     int PigeonId,
-    FoodMix? FoodMix = null)
+    FoodMix? FoodMix = null,
+    string? Breed = null,
+    bool? WeatherDay = null,
+    int? WeatherBeaufort = null,
+    decimal? WeatherTemperature = null,
+    string? WeatherCondition = null)
 {
     public string? FoodMixDisplay => FoodMix?.Display;
 }
@@ -139,7 +144,29 @@ public sealed record PigeonDistanceProfile(
 public sealed record FlightResultsPageData(
     IReadOnlyList<FlightResultListItem> RecentResults,
     IReadOnlyList<PigeonDistanceProfile> PigeonProfiles,
-    FoodImpactAnalysis? FoodAnalysis = null);
+    FoodImpactAnalysis? FoodAnalysis = null,
+    BreedAnalysisData? BreedAnalysis = null,
+    BreedSkillAnalysisData? BreedSkillAnalysis = null);
+
+// --- Age-category prizes (national flights) ---
+
+/// <summary>
+/// The three age categories a national flight is prized in. The member names are
+/// the exact <c>ageType</c> query values used by the flight results endpoint.
+/// </summary>
+public enum AgeCategory { Elder, Yearling, Youth }
+
+/// <summary>
+/// Prize breakdown for one age category of a national flight. Prize money is a
+/// flat 10 EUR per point (see <see cref="PrizeCalculator.PrizeMoneyPerPoint"/>),
+/// so it depends only on the category's own participant count — never on a pool.
+/// </summary>
+public sealed record AgeCategoryPrizeInfo(
+    AgeCategory Category,
+    int Participants,
+    int PrizePositions,
+    decimal TotalPrizeMoney,
+    IReadOnlyList<PrizeTier> PrizeTable);
 
 // --- Upcoming & active flight view models ---
 
@@ -153,7 +180,8 @@ public sealed record UpcomingFlightInfo(
     int Subscribers,
     decimal EntryPrice,
     IReadOnlyList<PrizeTier> PrizeTable,
-    int TotalPrizePositions);
+    int TotalPrizePositions,
+    IReadOnlyList<AgeCategoryPrizeInfo>? AgeCategoryPrizes = null);
 
 public sealed record ActiveFlightInfo(
     int FlightId,
@@ -168,7 +196,8 @@ public sealed record ActiveFlightInfo(
     IReadOnlyList<ActiveFancierStanding> FancierStandings,
     IReadOnlyList<PrizeTier> PrizeTable,
     decimal EntryPrice = 0,
-    decimal TotalPrizePool = 0);
+    decimal TotalPrizePool = 0,
+    IReadOnlyList<AgeCategoryPrizeInfo>? AgeCategoryPrizes = null);
 
 public sealed record ActivePigeonStanding(
     int PigeonId,
@@ -204,24 +233,8 @@ public sealed record CompletedFlightSummary(
     int TotalParticipants,
     int TotalPoints,
     IReadOnlyList<PrizeTier> PrizeTable,
-    int TotalPrizePositions);
-
-public sealed record FlightSnapshotDiagnostic(
-    string Endpoint,
-    string NormalizedQuery,
-    int StatusCode,
-    DateTimeOffset CapturedAtUtc,
-    int BodyLength);
-
-public sealed record FlightDiagnosticReport(
-    int QueriedFancierId,
-    IReadOnlyList<FlightSnapshotDiagnostic> LiveSnapshots,
-    IReadOnlyList<FlightSnapshotDiagnostic> FlightSnapshots,
-    string? LiveSnapshotBodyPreview,
-    string? FlightSnapshotBodyPreview,
-    int ParsedLiveFlightsCount,
-    int FilteredActiveCount,
-    string? ParseError);
+    int TotalPrizePositions,
+    IReadOnlyList<AgeCategoryPrizeInfo>? AgeCategoryPrizes = null);
 
 public interface IFlightResultsReader
 {
@@ -229,6 +242,5 @@ public interface IFlightResultsReader
     Task<IReadOnlyList<UpcomingFlightInfo>> GetUpcomingFlightsAsync(int fancierId);
     Task<IReadOnlyList<ActiveFlightInfo>> GetActiveFlightsAsync(int fancierId);
     Task<IReadOnlyList<CompletedFlightSummary>> GetCompletedFlightSummariesAsync(int fancierId);
-    Task<FlightDiagnosticReport> GetFlightDiagnosticsAsync(int fancierId);
     Task SaveFoodCommentAsync(int fancierId, FoodMix mix, string? comment);
 }

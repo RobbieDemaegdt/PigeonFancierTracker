@@ -28,6 +28,8 @@ public partial class PigeonHistoryView : UserControl
         return LoadHistoryAsync(selectedPigeonId);
     }
 
+    public Task OpenPigeonAsync(int pigeonId) => LoadHistoryAsync(pigeonId);
+
     private async void PigeonHistoryView_Loaded(object sender, RoutedEventArgs e)
     {
         Loaded -= PigeonHistoryView_Loaded;
@@ -114,8 +116,6 @@ public partial class PigeonHistoryView : UserControl
             AgeCurveStatusText.Text = $"{curve.Buckets.Count} leeftijdsbucket(s) beschikbaar.";
             AgeCurveSummary.Visibility = Visibility.Visible;
             AgeBucketGrid.Visibility = Visibility.Visible;
-            AgeCurveExpander.Visibility = Visibility.Visible;
-            AgeCurveExpander.IsExpanded = true;
 
             PeakSkillAgeText.Text = curve.PeakSkillAge.HasValue ? AgeCurveCalculator.FormatAge(curve.PeakSkillAge.Value) : "—";
             PeakPerformanceAgeText.Text = curve.PeakPerformanceAge.HasValue ? AgeCurveCalculator.FormatAge(curve.PeakPerformanceAge.Value) : "—";
@@ -125,7 +125,7 @@ public partial class PigeonHistoryView : UserControl
         }
         else
         {
-            AgeCurveExpander.Visibility = Visibility.Collapsed;
+            AgeCurveStatusText.Text = "Geen leeftijdsgegevens beschikbaar.";
             AgeCurveSummary.Visibility = Visibility.Collapsed;
             AgeBucketGrid.Visibility = Visibility.Collapsed;
             AgeBucketGrid.ItemsSource = null;
@@ -139,8 +139,6 @@ public partial class PigeonHistoryView : UserControl
             DiseaseImpactStatusText.Text = $"{impact.TotalEpisodes} ziekte-episode(s) gedetecteerd.";
             DiseaseImpactSummary.Visibility = Visibility.Visible;
             DiseaseEpisodesGrid.Visibility = Visibility.Visible;
-            DiseaseImpactExpander.Visibility = Visibility.Visible;
-            DiseaseImpactExpander.IsExpanded = true;
 
             TotalEpisodesText.Text = impact.TotalEpisodes.ToString(CultureInfo.CurrentCulture);
             AvgSkillLossText.Text = $"{impact.AvgSkillLoss:0.0}";
@@ -149,7 +147,7 @@ public partial class PigeonHistoryView : UserControl
         }
         else
         {
-            DiseaseImpactExpander.Visibility = Visibility.Collapsed;
+            DiseaseImpactStatusText.Text = "Geen ziekte-episodes gedetecteerd.";
             DiseaseImpactSummary.Visibility = Visibility.Collapsed;
             DiseaseEpisodesGrid.Visibility = Visibility.Collapsed;
             DiseaseEpisodesGrid.ItemsSource = null;

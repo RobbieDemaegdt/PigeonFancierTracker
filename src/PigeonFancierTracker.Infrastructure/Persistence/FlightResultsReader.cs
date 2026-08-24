@@ -16,6 +16,7 @@ public sealed class FlightResultsReader(
     {
         PropertyNameCaseInsensitive = true,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
+        Converters = { new LenientIntConverter() },
     };
     public async Task<FlightResultsPageData> GetFlightResultsAsync(int fancierId)
     {
@@ -29,7 +30,7 @@ public sealed class FlightResultsReader(
             select new { Result = r, Flight = f }
         ).ToListAsync();
 
-        var (nameMap, breedMap) = await BuildPigeonMapsAsync(db, fancierId);
+        var (nameMap, breedMap, skillMap) = await BuildPigeonMapsAsync(db, fancierId);
 
         var foodSnapshots = await db.FoodDistributionSnapshots
             .AsNoTracking()
@@ -67,7 +68,12 @@ public sealed class FlightResultsReader(
                     x.Result.AverageSpeed,
                     pigeonName,
                     x.Result.PigeonId,
-                    foodMix);
+                    foodMix,
+                    breedMap.GetValueOrDefault(x.Result.PigeonId),
+                    x.Flight.WeatherDay,
+                    x.Flight.WeatherBeaufort,
+                    x.Flight.WeatherTemperature,
+                    x.Flight.WeatherCondition);
             })
             .ToList();
 
@@ -85,7 +91,11 @@ public sealed class FlightResultsReader(
         var foodComments = BuildFoodComments(foodSnapshots);
         var foodAnalysis = FoodImpactCalculator.Calculate(recentResults, foodComments);
 
-        return new FlightResultsPageData(recentResults, profiles, foodAnalysis);
+        var breedAnalysis = BreedAnalysisCalculator.Calculate(recentResults);
+        var breedSkillAnalysis = BreedSkillCorrelationCalculator.Calculate(recentResults, skillMap);
+
+        return new FlightResultsPageData(
+            recentResults, profiles, foodAnalysis, breedAnalysis, breedSkillAnalysis);
     }
 
     public async Task<IReadOnlyList<UpcomingFlightInfo>> GetUpcomingFlightsAsync(int fancierId)
@@ -131,6 +141,28 @@ public sealed class FlightResultsReader(
         var translations = await ReadTranslationsAsync(db);
         var result = new List<ActiveFlightInfo>();
 
+        // National flights carry a per-age-category prize breakdown captured on
+        // their flight day; load it for any live national flight that has it.
+        var nationalActiveIds = activeFlights
+            .Where(f => string.Equals(f.Type, "national", StringComparison.OrdinalIgnoreCase))
+            .Select(f => f.Id)
+            .ToList();
+
+        var ageCategoryByFlight = new Dictionary<int, IReadOnlyList<AgeCategoryPrizeInfo>>();
+        if (nationalActiveIds.Count > 0)
+        {
+            var nationalEntities = await db.Flights
+                .AsNoTracking()
+                .Where(f => nationalActiveIds.Contains(f.Id) && f.AgeCategoryCountsCapturedAtUtc != null)
+                .ToListAsync();
+
+            foreach (var entity in nationalEntities)
+            {
+                if (BuildAgeCategoryPrizes(entity) is { } prizes)
+                    ageCategoryByFlight[entity.Id] = prizes;
+            }
+        }
+
         foreach (var flight in activeFlights)
         {
             FlightResultsResponse? resultsResponse = null;
@@ -150,7 +182,7 @@ public sealed class FlightResultsReader(
             var prizeTable = PrizeCalculator.CalculatePrizeTableWithMoney(flight.Subscribers, flightType, flight.EntryPrice);
 
             var pigeonStandings = new List<ActivePigeonStanding>();
-            var fancierPoints = new Dictionary<int, (string Name, int TotalPoints, int PigeonCount, int BestPosition, decimal TotalPrizeMoney, int PrizePigeonCount)>();
+            var fancierPoints = new Dictionary<int, (string Name, int TotalPoints, int PigeonCount, int BestPosition, int PrizePigeonCount)>();
             var totalPrizePool = flight.Subscribers * flight.EntryPrice;
 
             if (resultsResponse?.Items is { } items)
@@ -159,8 +191,6 @@ public sealed class FlightResultsReader(
                 {
                     var points = PrizeCalculator.GetPointsForPosition(
                         item.Position, flight.Subscribers, flightType);
-                    var prizeMoney = PrizeCalculator.GetPrizeMoneyForPosition(
-                        item.Position, flight.Subscribers, flightType, flight.EntryPrice);
 
                     var pigeonName = ResolvePigeonName(item.FirstNameId, item.LastNameId, item.PigeonId, translations);
 
@@ -173,12 +203,11 @@ public sealed class FlightResultsReader(
                         item.RemainingDistance,
                         item.Progress,
                         item.FancierId,
-                        item.Fancier,
-                        prizeMoney));
+                        item.Fancier));
 
                     if (!fancierPoints.TryGetValue(item.FancierId, out var current))
                     {
-                        current = (item.Fancier ?? $"#{item.FancierId}", 0, 0, item.Position, 0m, 0);
+                        current = (item.Fancier ?? $"#{item.FancierId}", 0, 0, item.Position, 0);
                     }
 
                     fancierPoints[item.FancierId] = (
@@ -186,7 +215,6 @@ public sealed class FlightResultsReader(
                         current.TotalPoints + points,
                         current.PigeonCount + 1,
                         Math.Min(current.BestPosition, item.Position),
-                        current.TotalPrizeMoney + prizeMoney,
                         current.PrizePigeonCount + (points > 0 ? 1 : 0));
                 }
             }
@@ -199,7 +227,7 @@ public sealed class FlightResultsReader(
                     kvp.Value.PigeonCount,
                     kvp.Value.BestPosition,
                     kvp.Key == fancierId,
-                    kvp.Value.TotalPrizeMoney,
+                    PrizeCalculator.GetFancierPrizeMoney(kvp.Value.TotalPoints),
                     kvp.Value.PrizePigeonCount))
                 .OrderByDescending(f => f.TotalPoints)
                 .ThenBy(f => f.BestPosition)
@@ -209,7 +237,8 @@ public sealed class FlightResultsReader(
                 flight.Id, flight.Start, flight.Location?.Name, flight.Type,
                 realDistance, category, flight.Subscribers, flight.Progress,
                 pigeonStandings, fancierStandings, prizeTable,
-                flight.EntryPrice, totalPrizePool));
+                flight.EntryPrice, totalPrizePool,
+                ageCategoryByFlight.GetValueOrDefault(flight.Id)));
         }
 
         return result;
@@ -243,6 +272,24 @@ public sealed class FlightResultsReader(
         string.Equals(type, "national", StringComparison.OrdinalIgnoreCase)
             ? FlightType.National
             : FlightType.Regional;
+
+    /// <summary>
+    /// Builds the per-age-category prize breakdown from a flight's captured
+    /// counts, or null when the counts were never captured (non-national flights,
+    /// or national flights not synced on their flight day).
+    /// </summary>
+    private static IReadOnlyList<AgeCategoryPrizeInfo>? BuildAgeCategoryPrizes(FlightEntity flight)
+    {
+        if (flight.AgeCategoryCountsCapturedAtUtc is null)
+            return null;
+
+        var prizes = PrizeCalculator.CalculateAgeCategoryPrizes(
+            (AgeCategory.Elder, flight.AgeCategoryElderCount),
+            (AgeCategory.Yearling, flight.AgeCategoryYearlingCount),
+            (AgeCategory.Youth, flight.AgeCategoryYouthCount));
+
+        return prizes.Count > 0 ? prizes : null;
+    }
 
     private static int ComputeFlightDistance(FlightDto flight, FancierLocationDto? fancierLocation)
     {
@@ -288,96 +335,6 @@ public sealed class FlightResultsReader(
         }
     }
 
-    public async Task<FlightDiagnosticReport> GetFlightDiagnosticsAsync(int fancierId)
-    {
-        await using var db = await contextFactory.CreateDbContextAsync();
-
-        var liveSnapshots = await db.RawApiSnapshots
-            .AsNoTracking()
-            .Where(x => x.Endpoint == "/api/flight/live")
-            .OrderByDescending(x => x.Id)
-            .Take(10)
-            .Select(x => new FlightSnapshotDiagnostic(
-                x.Endpoint, x.NormalizedQuery, x.StatusCode, x.CapturedAtUtc,
-                x.ResponseBodyJson.Length))
-            .ToListAsync();
-
-        var flightSnapshots = await db.RawApiSnapshots
-            .AsNoTracking()
-            .Where(x => x.Endpoint == "/api/flight")
-            .OrderByDescending(x => x.Id)
-            .Take(10)
-            .Select(x => new FlightSnapshotDiagnostic(
-                x.Endpoint, x.NormalizedQuery, x.StatusCode, x.CapturedAtUtc,
-                x.ResponseBodyJson.Length))
-            .ToListAsync();
-
-        string? livePreview = null;
-        string? flightPreview = null;
-        int parsedCount = 0;
-        int filteredCount = 0;
-        string? parseError = null;
-
-        var bestLive = await db.RawApiSnapshots
-            .AsNoTracking()
-            .Where(x => x.SelectedFancierId == fancierId
-                && x.Endpoint == "/api/flight/live"
-                && x.StatusCode >= 200 && x.StatusCode < 300)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync();
-
-        if (bestLive is null)
-        {
-            bestLive = await db.RawApiSnapshots
-                .AsNoTracking()
-                .Where(x => x.Endpoint == "/api/flight/live"
-                    && x.StatusCode >= 200 && x.StatusCode < 300)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync();
-        }
-
-        if (bestLive is not null)
-        {
-            livePreview = bestLive.ResponseBodyJson.Length > 500
-                ? bestLive.ResponseBodyJson[..500] + "..."
-                : bestLive.ResponseBodyJson;
-
-            try
-            {
-                var flights = JsonSerializer.Deserialize<List<FlightDto>>(bestLive.ResponseBodyJson, JsonOptions);
-                parsedCount = flights?.Count ?? 0;
-                filteredCount = flights?
-                    .Where(f => string.Equals(f.Status, "started", StringComparison.OrdinalIgnoreCase))
-                    .Where(f => string.Equals(f.Type, "regional", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(f.Type, "national", StringComparison.OrdinalIgnoreCase))
-                    .Count() ?? 0;
-            }
-            catch (JsonException ex)
-            {
-                parseError = ex.Message;
-            }
-        }
-
-        var bestFlight = await db.RawApiSnapshots
-            .AsNoTracking()
-            .Where(x => x.Endpoint == "/api/flight"
-                && x.StatusCode >= 200 && x.StatusCode < 300)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync();
-
-        if (bestFlight is not null)
-        {
-            flightPreview = bestFlight.ResponseBodyJson.Length > 500
-                ? bestFlight.ResponseBodyJson[..500] + "..."
-                : bestFlight.ResponseBodyJson;
-        }
-
-        return new FlightDiagnosticReport(
-            fancierId, liveSnapshots, flightSnapshots,
-            livePreview, flightPreview,
-            parsedCount, filteredCount, parseError);
-    }
-
     public async Task<IReadOnlyList<CompletedFlightSummary>> GetCompletedFlightSummariesAsync(int fancierId)
     {
         await using var db = await contextFactory.CreateDbContextAsync();
@@ -421,10 +378,14 @@ public sealed class FlightResultsReader(
                         totalParticipants = results[0].TotalParticipants;
                 }
 
+                var ageCategoryPrizes = flightType == FlightType.National
+                    ? BuildAgeCategoryPrizes(f)
+                    : null;
+
                 return new CompletedFlightSummary(
                     f.Id, f.Start, f.LocationName, f.Type, f.DistanceKm,
                     category, ownPigeonCount, bestPosition, totalParticipants,
-                    totalPoints, prizeTable, totalPrizes);
+                    totalPoints, prizeTable, totalPrizes, ageCategoryPrizes);
             })
             .ToList();
     }
@@ -552,7 +513,10 @@ public sealed class FlightResultsReader(
         return [];
     }
 
-    private static async Task<(Dictionary<int, string> Names, Dictionary<int, string?> Breeds)> BuildPigeonMapsAsync(
+    private static async Task<(
+        Dictionary<int, string> Names,
+        Dictionary<int, string?> Breeds,
+        Dictionary<int, PigeonSkillsDto> Skills)> BuildPigeonMapsAsync(
         AppDbContext db,
         int fancierId)
     {
@@ -565,7 +529,7 @@ public sealed class FlightResultsReader(
             .FirstOrDefaultAsync();
 
         if (snapshot is null)
-            return (new Dictionary<int, string>(), new Dictionary<int, string?>());
+            return (new Dictionary<int, string>(), new Dictionary<int, string?>(), new Dictionary<int, PigeonSkillsDto>());
 
         var translationSnapshots = await db.RawApiSnapshots
             .AsNoTracking()
@@ -585,15 +549,18 @@ public sealed class FlightResultsReader(
 
         var nameMap = new Dictionary<int, string>();
         var breedMap = new Dictionary<int, string?>();
+        var skillMap = new Dictionary<int, PigeonSkillsDto>();
         foreach (var p in pigeons)
         {
             if (p.Id is { } id)
             {
                 nameMap[id] = PigeonNameResolver.CreateDisplayName(p, translations);
                 breedMap[id] = p.Breed;
+                if (p.Skills is { } skills)
+                    skillMap[id] = skills;
             }
         }
 
-        return (nameMap, breedMap);
+        return (nameMap, breedMap, skillMap);
     }
 }

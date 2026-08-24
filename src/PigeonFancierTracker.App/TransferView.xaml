@@ -5,7 +5,7 @@
         xmlns:contracts="clr-namespace:PigeonFancierTracker.Core.Contracts;assembly=PigeonFancierTracker.Core"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         MinHeight="520"
-        MinWidth="980"
+        MinWidth="820"
         Background="{DynamicResource PageBackgroundBrush}">
     <UserControl.Resources>
         <local:ExpiredStatusToVisibilityConverter x:Key="ExpiredToVisibility" />
@@ -29,7 +29,8 @@
             </DockPanel>
         </Border>
 
-        <TabControl Grid.Row="1" Style="{StaticResource AppTabControlStyle}" Margin="20,14,20,20">
+        <Grid x:Name="TransferListPage" Grid.Row="1">
+        <TabControl Style="{StaticResource AppTabControlStyle}" Margin="20,14,20,20">
             <!-- Active Transfers Tab -->
             <TabItem Header="Actieve transfers" Style="{StaticResource AppTabItemStyle}">
                 <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="0,10,10,10" Padding="20" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
@@ -66,29 +67,28 @@
                                 </StackPanel>
                             </Border>
 
-                            <DataGrid x:Name="ActiveTransferGrid"
-                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
-                                      HeadersVisibility="Column" MinHeight="120" MaxHeight="400" GridLinesVisibility="Horizontal"
-                                      SelectionChanged="ActiveTransferGrid_SelectionChanged">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.5*" />
-                                    <DataGridTextColumn Header="Geslacht" Binding="{Binding Sex}" Width="65" />
-                                    <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age}" Width="70" />
-                                    <DataGridTextColumn Header="Ras" Binding="{Binding Breed}" Width="80" />
-                                    <DataGridTextColumn Header="Prijs" Binding="{Binding CurrentPrice}" Width="65" />
-                                    <DataGridTextColumn Header="Verkoper" Binding="{Binding Seller}" Width="1*" />
-                                    <DataGridTextColumn Header="Koper" Binding="{Binding Buyer}" Width="1*" />
-                                    <DataGridTextColumn Header="Biedingen" Binding="{Binding BidCount}" Width="70" />
-                                    <DataGridTextColumn Header="Resterende tijd" Binding="{Binding TimeRemaining}" Width="100" />
-                                    <DataGridTextColumn Header="Geschatte waarde" Binding="{Binding BestEstimateDisplay}" Width="110" />
-                                    <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="60" />
-                                    <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="55" />
-                                    <DataGridTextColumn Header="Midden" Binding="{Binding MediumDisplay}" Width="65" />
-                                    <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="55" />
-                                </DataGrid.Columns>
-                            </DataGrid>
-
-                            <local:TransferDetailControl x:Name="ActiveDetailPanel" Visibility="Collapsed" Margin="0,12,0,0" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="5*" MinWidth="480" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="3*" MinWidth="290" />
+                                </Grid.ColumnDefinitions>
+                                <DataGrid x:Name="ActiveTransferGrid"
+                                          AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                                          HeadersVisibility="Column" MinHeight="360" MaxHeight="560" GridLinesVisibility="Horizontal"
+                                          SelectionMode="Single" SelectionChanged="ActiveTransferGrid_SelectionChanged" Cursor="Hand">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="*" MinWidth="110" />
+                                        <DataGridTextColumn Header="Prijs" Binding="{Binding CurrentPrice, StringFormat=€{0:N0}}" Width="68" />
+                                        <DataGridTextColumn Header="Geschat" Binding="{Binding BestEstimateDisplay}" Width="105" />
+                                        <DataGridTextColumn Header="Biedingen" Binding="{Binding BidCount}" Width="62" />
+                                        <DataGridTextColumn Header="Resterend" Binding="{Binding TimeRemaining}" Width="88" />
+                                        <DataGridTextColumn Header="Verkoper" Binding="{Binding Seller}" Width="*" MinWidth="90" />
+                                        <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="58" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <local:TransferSummaryControl x:Name="ActiveSummaryPanel" Grid.Column="2" />
+                            </Grid>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
@@ -100,82 +100,32 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <TextBlock x:Name="CompletedTransferCountText" Text="Nog geen voltooide transfers gedetecteerd." Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,14" />
-                            <DataGrid x:Name="CompletedTransferGrid"
-                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
-                                      HeadersVisibility="Column" MinHeight="120" MaxHeight="400" GridLinesVisibility="Horizontal"
-                                      SelectionChanged="CompletedTransferGrid_SelectionChanged">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.5*" />
-                                    <DataGridTextColumn Header="Duif ID" Binding="{Binding PigeonId}" Width="60" />
-                                    <DataGridTextColumn Header="Geslacht" Binding="{Binding Sex}" Width="65" />
-                                    <DataGridTextColumn Header="Leeftijd" Binding="{Binding Age}" Width="70" />
-                                    <DataGridTextColumn Header="Ras" Binding="{Binding Breed}" Width="80" />
-                                    <DataGridTemplateColumn Header="Prijs" Width="75">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding CurrentPrice, Mode=OneWay}"
-                                                         Tag="PriceEditor"
-                                                         BorderThickness="0" Background="Transparent" Padding="2,1"
-                                                         FontSize="12" />
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Verkoper" Binding="{Binding Seller}" Width="1*" />
-                                    <DataGridTemplateColumn Header="Koper" Width="1*">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding Buyer, Mode=OneWay}"
-                                                         Tag="BuyerEditor"
-                                                         BorderThickness="0" Background="Transparent" Padding="2,1"
-                                                         FontSize="12" />
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Biedingen" Binding="{Binding BidCount}" Width="70" />
-                                    <DataGridTemplateColumn Header="Status" Width="85">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <ComboBox SelectedItem="{Binding TimeRemaining, Mode=OneWay}"
-                                                          Tag="StatusEditor"
-                                                          BorderThickness="0" Background="Transparent" Padding="2,1"
-                                                          FontSize="12">
-                                                    <sys:String>Sold</sys:String>
-                                                    <sys:String>Expired</sys:String>
-                                                </ComboBox>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Geschatte waarde" Binding="{Binding BestEstimateDisplay}" Width="110" />
-                                    <DataGridTextColumn Header="Prijsverschil" Binding="{Binding PriceDeltaDisplay}" Width="85" />
-                                    <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="60" />
-                                    <DataGridTextColumn Header="Kort" Binding="{Binding ShortDisplay}" Width="55" />
-                                    <DataGridTextColumn Header="Midden" Binding="{Binding MediumDisplay}" Width="65" />
-                                    <DataGridTextColumn Header="Lang" Binding="{Binding LongDisplay}" Width="55" />
-                                    <DataGridTemplateColumn Header="" Width="Auto">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Button Content="💾" ToolTip="Wijzigingen opslaan"
-                                                            Click="SaveRowButton_Click"
-                                                            Style="{StaticResource LinkButtonStyle}"
-                                                            FontSize="12" Padding="6,2" />
-                                                    <Button Content="↻" ToolTip="Hercontroleer status"
-                                                            Click="RecheckButton_Click"
-                                                            Style="{StaticResource LinkButtonStyle}"
-                                                            FontSize="14" Padding="6,2"
-                                                            Visibility="{Binding Status, Converter={StaticResource ExpiredToVisibility}}" />
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="5*" MinWidth="480" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="3*" MinWidth="290" />
+                                </Grid.ColumnDefinitions>
+                                <DataGrid x:Name="CompletedTransferGrid"
+                                          AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                                          HeadersVisibility="Column" MinHeight="360" MaxHeight="560" GridLinesVisibility="Horizontal"
+                                          SelectionMode="Single" SelectionChanged="CompletedTransferGrid_SelectionChanged" Cursor="Hand">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="*" MinWidth="110" />
+                                        <DataGridTextColumn Header="Prijs" Binding="{Binding SoldPrice, StringFormat=€{0:N0}, TargetNullValue=—}" Width="68" />
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="70" />
+                                        <DataGridTextColumn Header="Koper" Binding="{Binding Buyer, TargetNullValue=—}" Width="*" MinWidth="85" />
+                                        <DataGridTextColumn Header="Geschat" Binding="{Binding BestEstimateDisplay}" Width="105" />
+                                        <DataGridTextColumn Header="Verschil" Binding="{Binding PriceDeltaDisplay}" Width="82" />
+                                        <DataGridTextColumn Header="Totaal" Binding="{Binding TotalSkillDisplay}" Width="58" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <local:TransferSummaryControl x:Name="CompletedSummaryPanel" Grid.Column="2" />
+                            </Grid>
 
                             <TextBlock x:Name="RecheckStatusMessage" Visibility="Collapsed"
                                        Foreground="{DynamicResource MutedTextBrush}" FontSize="12"
                                        Margin="0,6,0,0" />
-
-                            <local:TransferDetailControl x:Name="CompletedDetailPanel" Visibility="Collapsed" Margin="0,12,0,0" />
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
@@ -313,5 +263,22 @@
                 </Border>
             </TabItem>
         </TabControl>
+        </Grid>
+
+        <Grid x:Name="TransferDetailPage" Grid.Row="1" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,12">
+                <DockPanel>
+                    <Button Content="Terug naar transfers" Style="{StaticResource SecondaryButtonStyle}" Click="BackToTransferList_Click" DockPanel.Dock="Left" />
+                    <TextBlock x:Name="TransferDetailPageTitle" Text="Transferanalyse" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                </DockPanel>
+            </Border>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <local:TransferDetailControl x:Name="TransferFullDetailPanel" Margin="20" />
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>

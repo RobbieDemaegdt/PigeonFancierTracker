@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PigeonFancierTracker.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using PigeonFancierTracker.Infrastructure.Persistence;
 namespace PigeonFancierTracker.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820105751_AddWeatherToFlight")]
+    partial class AddWeatherToFlight
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -87,18 +90,6 @@ namespace PigeonFancierTracker.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PigeonFancierTracker.Infrastructure.Persistence.FlightEntity", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTimeOffset?>("AgeCategoryCountsCapturedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("AgeCategoryElderCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("AgeCategoryYearlingCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("AgeCategoryYouthCount")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("AgeType")

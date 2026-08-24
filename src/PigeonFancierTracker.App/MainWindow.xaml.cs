@@ -31,6 +31,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer autoSyncTimer;
     private IReadOnlyList<PigeonListItem>? allPigeons;
     private IReadOnlyList<PigeonListItem>? allOverviewPigeons;
+    private int? selectedPigeonId;
     private bool overviewLoaded;
     private bool breedingLoaded;
 
@@ -232,6 +233,7 @@ public partial class MainWindow : Window
     private static readonly Brush OfflineFill = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));
     private static readonly Brush WarningFill = new SolidColorBrush(Color.FromRgb(0xD4, 0x8B, 0x00));
     private static readonly Brush DangerFill = new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B));
+    private static readonly Brush SidebarSelectedFill = new SolidColorBrush(Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF));
 
     static MainWindow()
     {
@@ -239,6 +241,7 @@ public partial class MainWindow : Window
         OfflineFill.Freeze();
         WarningFill.Freeze();
         DangerFill.Freeze();
+        SidebarSelectedFill.Freeze();
     }
 
     private void UpdateSessionDisplay(SessionSnapshot snapshot)
@@ -268,7 +271,9 @@ public partial class MainWindow : Window
         if (selectedFancierId is not int fancierId)
         {
             allPigeons = null;
+            selectedPigeonId = null;
             PigeonGrid.ItemsSource = null;
+            UpdatePigeonDetail(null);
             DataMessageText.Text = "Selecteer een melker en voer een sync uit om lokale data te laden.";
             DataPigeonCountText.Text = "—";
             DataCapitalText.Text = "—";
@@ -404,14 +409,32 @@ public partial class MainWindow : Window
         RankingPage.Visibility = page == RankingPage ? Visibility.Visible : Visibility.Collapsed;
         SponsorPage.Visibility = page == SponsorPage ? Visibility.Visible : Visibility.Collapsed;
         DataPage.Visibility = page == DataPage ? Visibility.Visible : Visibility.Collapsed;
-        DashboardNavButton.FontWeight = page == DashboardPage ? FontWeights.SemiBold : FontWeights.Normal;
-        ConnectionNavButton.FontWeight = page == ConnectionPage ? FontWeights.SemiBold : FontWeights.Normal;
-        HistoryNavButton.FontWeight = page == HistoryPage ? FontWeights.SemiBold : FontWeights.Normal;
-        TransferNavButton.FontWeight = page == TransferPage ? FontWeights.SemiBold : FontWeights.Normal;
-        FlightsNavButton.FontWeight = page == FlightsPage ? FontWeights.SemiBold : FontWeights.Normal;
-        RankingNavButton.FontWeight = page == RankingPage ? FontWeights.SemiBold : FontWeights.Normal;
-        SponsorNavButton.FontWeight = page == SponsorPage ? FontWeights.SemiBold : FontWeights.Normal;
-        DataNavButton.FontWeight = page == DataPage ? FontWeights.SemiBold : FontWeights.Normal;
+        SetNavigationButtonState(DashboardNavButton, page == DashboardPage);
+        SetNavigationButtonState(ConnectionNavButton, page == ConnectionPage);
+        SetNavigationButtonState(HistoryNavButton, page == HistoryPage);
+        SetNavigationButtonState(TransferNavButton, page == TransferPage);
+        SetNavigationButtonState(FlightsNavButton, page == FlightsPage);
+        SetNavigationButtonState(RankingNavButton, page == RankingPage);
+        SetNavigationButtonState(SponsorNavButton, page == SponsorPage);
+        SetNavigationButtonState(DataNavButton, page == DataPage);
+
+        (ShellPageTitle.Text, ShellPageSubtitle.Text) = page switch
+        {
+            var current when current == DashboardPage => ("Hokoverzicht", "Duiven, hokstatus en lokale gegevens in één overzicht"),
+            var current when current == HistoryPage => ("Duivengeschiedenis", "Ontwikkeling, gezondheid en waarde per duif"),
+            var current when current == FlightsPage => ("Vluchten", "Actieve, komende en voltooide wedstrijden"),
+            var current when current == RankingPage => ("Klassement", "Regionale en nationale rangschikkingen"),
+            var current when current == TransferPage => ("Transfers", "Actieve biedingen, historiek en marktinzichten"),
+            var current when current == SponsorPage => ("Sponsoring", "Contracten, aanbiedingen en inkomsten"),
+            var current when current == ConnectionPage => ("Verbinding", "Aanmelden, melker selecteren en synchroniseren"),
+            _ => ("Gegevens & instellingen", "Back-ups, automatisch synchroniseren en lokale opslag"),
+        };
+    }
+
+    private static void SetNavigationButtonState(Button button, bool isSelected)
+    {
+        button.FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal;
+        button.Background = isSelected ? SidebarSelectedFill : Brushes.Transparent;
     }
 
     private void ThemeToggle_Click(object sender, RoutedEventArgs e)
@@ -437,36 +460,69 @@ public partial class MainWindow : Window
         if (allPigeons is null)
         {
             PigeonGrid.ItemsSource = null;
+            UpdatePigeonDetail(null);
             return;
         }
 
         var search = PigeonSearchBox.Text?.Trim();
-        if (string.IsNullOrEmpty(search))
-        {
-            PigeonGrid.ItemsSource = allPigeons;
-        }
-        else
-        {
-            PigeonGrid.ItemsSource = allPigeons
+        var filteredPigeons = string.IsNullOrEmpty(search)
+            ? allPigeons
+            : allPigeons
                 .Where(p => p.DisplayName?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)
                 .ToList();
-        }
+
+        PigeonGrid.ItemsSource = filteredPigeons;
+        var selectedPigeon = selectedPigeonId is int pigeonId
+            ? filteredPigeons.FirstOrDefault(p => p.SourceId == pigeonId)
+            : null;
+        selectedPigeon ??= filteredPigeons.FirstOrDefault();
+        PigeonGrid.SelectedItem = selectedPigeon;
+        UpdatePigeonDetail(selectedPigeon);
     }
 
-    private void ShowAllColumns_Changed(object sender, RoutedEventArgs e)
+    private void PigeonGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var show = ShowAllColumnsToggle.IsChecked == true;
-        var vis = show ? Visibility.Visible : Visibility.Collapsed;
-        ColForm.Visibility = vis;
-        ColExperience.Visibility = vis;
-        ColStamina.Visibility = vis;
-        ColSpeed.Visibility = vis;
-        ColNavigation.Visibility = vis;
-        ColTechnique.Visibility = vis;
-        ColAerodynamics.Visibility = vis;
-        ColIntelligence.Visibility = vis;
-        ColLibido.Visibility = vis;
-        ColNightvision.Visibility = vis;
+        var selectedPigeon = PigeonGrid.SelectedItem as PigeonListItem;
+        selectedPigeonId = selectedPigeon?.SourceId;
+        UpdatePigeonDetail(selectedPigeon);
+    }
+
+    private void UpdatePigeonDetail(PigeonListItem? pigeon)
+    {
+        if (pigeon is null)
+        {
+            PigeonDetailTitleText.Text = "Geen duif geselecteerd";
+            PigeonDetailIdentityText.Text = "Pas je zoekopdracht aan of synchroniseer om duiven te laden.";
+            PigeonDetailHealthText.Text = "—";
+            PigeonDetailRaceText.Text = "—";
+            PigeonDetailFinanceText.Text = "—";
+            PigeonDetailSkillsText.Text = "—";
+            OpenPigeonHistoryButton.IsEnabled = false;
+            return;
+        }
+
+        PigeonDetailTitleText.Text = pigeon.DisplayName;
+        PigeonDetailIdentityText.Text = $"ID {pigeon.SourceId?.ToString(CultureInfo.CurrentCulture) ?? "—"} · {pigeon.Sex ?? "Geslacht onbekend"} · {pigeon.Age ?? "Leeftijd onbekend"} · {pigeon.Breed ?? "Ras onbekend"}";
+        var flightStatus = pigeon.Flying switch
+        {
+            true => "In vlucht",
+            false => "Niet in vlucht",
+            null => "Vluchtstatus onbekend",
+        };
+        PigeonDetailHealthText.Text = $"{pigeon.Disease ?? "Geen ziekte geregistreerd"} · {flightStatus} · Training {pigeon.TrainingDisplay ?? "—"}";
+        PigeonDetailRaceText.Text = $"{pigeon.RaceCount?.ToString(CultureInfo.CurrentCulture) ?? "—"} vluchten · {pigeon.TotalPoints?.ToString(CultureInfo.CurrentCulture) ?? "—"} punten";
+        PigeonDetailFinanceText.Text = $"Verdiensten {pigeon.EarningsDisplay ?? "—"} · Waarde {pigeon.Premium?.ToString("C2", CultureInfo.CurrentCulture) ?? "—"}";
+        PigeonDetailSkillsText.Text = $"Vorm {pigeon.FormDisplay ?? "—"} · Ervaring {pigeon.ExperienceDisplay ?? "—"} · Conditie {pigeon.StaminaDisplay ?? "—"} · Snelheid {pigeon.SpeedDisplay ?? "—"} · Navigatie {pigeon.NavigationDisplay ?? "—"}";
+        OpenPigeonHistoryButton.IsEnabled = pigeon.SourceId.HasValue;
+    }
+
+    private async void OpenSelectedPigeonHistory_Click(object sender, RoutedEventArgs e)
+    {
+        if (PigeonGrid.SelectedItem is not PigeonListItem { SourceId: int pigeonId })
+            return;
+
+        SetPage(HistoryPage);
+        await pigeonHistoryView.OpenPigeonAsync(pigeonId);
     }
 
     private void DashboardTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)

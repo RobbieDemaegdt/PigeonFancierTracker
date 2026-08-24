@@ -1,3 +1,4 @@
+using PigeonFancierTracker.Core.Contracts;
 using PigeonFancierTracker.Core.Domain;
 
 namespace PigeonFancierTracker.Core.Analytics;
@@ -6,6 +7,14 @@ public static class PrizeCalculator
 {
     private static readonly int[] RegionalPoints = [50, 40, 30, 25, 10, 5];
     private static readonly int[] NationalPoints = [150, 120, 90, 60, 24, 12];
+
+    /// <summary>Euro paid out to a fancier per classification point earned.</summary>
+    public const decimal PrizeMoneyPerPoint = 10m;
+
+    /// <summary>
+    /// Prize money a fancier earns on an active flight: a flat 10 euro per point.
+    /// </summary>
+    public static decimal GetFancierPrizeMoney(int totalPoints) => totalPoints * PrizeMoneyPerPoint;
 
     public static IReadOnlyList<PrizeTier> CalculatePrizeTable(int subscribers, FlightType type)
     {
@@ -97,6 +106,34 @@ public static class PrizeCalculator
         foreach (var tier in tiers)
             total += tier.Count * tier.PointsPerPosition;
         return total;
+    }
+
+    /// <summary>
+    /// Builds the per-age-category prize breakdown for a national flight. Each
+    /// category is prized independently on its own participant count, and prize
+    /// money is a flat <see cref="PrizeMoneyPerPoint"/> euro per point (no pool,
+    /// no entry price). Categories with no participants are omitted.
+    /// </summary>
+    public static IReadOnlyList<AgeCategoryPrizeInfo> CalculateAgeCategoryPrizes(
+        params (AgeCategory Category, int? Count)[] categories)
+    {
+        var result = new List<AgeCategoryPrizeInfo>();
+
+        foreach (var (category, count) in categories)
+        {
+            if (count is not { } participants || participants <= 0)
+                continue;
+
+            var tiers = CalculatePrizeTable(participants, FlightType.National)
+                .Select(t => t with { PrizeMoneyPerPosition = t.PointsPerPosition * PrizeMoneyPerPoint })
+                .ToList();
+            var positions = GetTotalPrizePositions(participants);
+            var totalMoney = tiers.Sum(t => t.Count * t.PrizeMoneyPerPosition);
+
+            result.Add(new AgeCategoryPrizeInfo(category, participants, positions, totalMoney, tiers));
+        }
+
+        return result;
     }
 }
 

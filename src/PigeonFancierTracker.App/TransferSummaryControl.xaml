@@ -1,0 +1,66 @@
+<UserControl x:Class="PigeonFancierTracker.App.TransferSummaryControl"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        MinWidth="280"
+        Background="Transparent">
+    <Border Background="{DynamicResource PageBackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="18">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock x:Name="SummaryEyebrowText" Text="TRANSFER" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" FontWeight="SemiBold" />
+                <TextBlock x:Name="SummaryTitleText" Text="Selecteer een transfer" Foreground="{DynamicResource HeadingTextBrush}" FontSize="19" FontWeight="SemiBold" Margin="0,5,0,0" TextWrapping="Wrap" />
+                <TextBlock x:Name="SummaryIdentityText" Text="De eerste beschikbare transfer wordt automatisch geselecteerd." Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,4,0,14" TextWrapping="Wrap" />
+
+                <UniformGrid Columns="2" Margin="0,0,0,14">
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Huidige prijs" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="SummaryPriceText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,3,0,0" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Geschatte waarde" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBlock x:Name="SummaryEstimateText" Text="—" Foreground="{DynamicResource HeadingTextBrush}" FontSize="16" FontWeight="SemiBold" Margin="0,3,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </UniformGrid>
+
+                <TextBlock Text="Markt" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                <TextBlock x:Name="SummaryMarketText" Text="—" Foreground="{DynamicResource BodyTextBrush}" Margin="0,3,0,12" TextWrapping="Wrap" />
+
+                <TextBlock Text="Vaardigheden" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                <TextBlock x:Name="SummarySkillsText" Text="—" Foreground="{DynamicResource BodyTextBrush}" Margin="0,3,0,16" TextWrapping="Wrap" />
+
+                <Border x:Name="AutoBidPanel" Background="{DynamicResource NeutralBannerBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,12" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Automatisch bieden" Foreground="{DynamicResource HeadingTextBrush}" FontWeight="SemiBold" />
+                        <TextBlock Text="Stel hier meteen je maximale bod in." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,3,0,8" TextWrapping="Wrap" />
+                        <DockPanel>
+                            <TextBox x:Name="AutoBidMaxPriceInput" Width="95" Padding="7,5" />
+                            <Button Content="Toevoegen" Style="{StaticResource PrimaryButtonStyle}" Padding="10,5" Margin="8,0,0,0" Click="AddToAutoBid_Click" />
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="CompletedEditPanel" Background="{DynamicResource NeutralBannerBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,12" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Verkoopgegevens" Foreground="{DynamicResource HeadingTextBrush}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <TextBlock Text="Verkoopprijs" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBox x:Name="SoldPriceInput" Padding="7,5" Margin="0,3,0,8" />
+                        <TextBlock Text="Koper" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <TextBox x:Name="BuyerInput" Padding="7,5" Margin="0,3,0,8" />
+                        <TextBlock Text="Status" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+                        <ComboBox x:Name="StatusInput" Padding="7,5" Margin="0,3,0,10" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Opslaan" Style="{StaticResource PrimaryButtonStyle}" Padding="10,5" Click="Save_Click" />
+                            <Button x:Name="RecheckButton" Content="Status hercontroleren" Style="{StaticResource SecondaryButtonStyle}" Padding="10,5" Margin="8,0,0,0" Click="Recheck_Click" Visibility="Collapsed" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Button x:Name="OpenDetailsButton" Content="Volledige analyse" Style="{StaticResource SecondaryButtonStyle}"
+                        Click="OpenDetails_Click" IsEnabled="False" HorizontalAlignment="Stretch" />
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

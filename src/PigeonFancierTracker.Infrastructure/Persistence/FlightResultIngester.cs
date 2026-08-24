@@ -16,6 +16,10 @@ public sealed class FlightResultIngester(
     {
         PropertyNameCaseInsensitive = true,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
+        // Flight results can carry fractional numeric fields (e.g. remainingDistance)
+        // for in-progress flights; round them into the int DTO fields rather than
+        // failing the whole payload. See LenientIntConverter.
+        Converters = { new LenientIntConverter() },
     };
 
     public async Task IngestAsync(
@@ -51,6 +55,188 @@ public sealed class FlightResultIngester(
         {
             await FetchAndPersistResultsAsync(db, flight, selectedFancierId, cancellationToken);
         }
+
+        // Step 5: Backfill weather for any flight that doesn't have it yet, resolved
+        // from the /api/weather snapshots captured over time.
+        await BackfillFlightWeatherAsync(db, selectedFancierId, cancellationToken);
+
+        // Step 6: Capture per-age-category participant counts for national flights on
+        // their own flight day. These drive the per-category prize breakdown and are
+        // only obtainable from the ageType-filtered results endpoint.
+        await CaptureNationalAgeCategoryCountsAsync(db, selectedFancierId, cancellationToken);
+    }
+
+    /// <summary>
+    /// For each national flight whose date is today and whose age-category counts
+    /// haven't been captured yet, fetches the Elder/Yearling/Youth participant
+    /// counts from the ageType-filtered results endpoint and stores them.
+    ///
+    /// Gated three ways to keep API load minimal: national flights only, on the
+    /// flight's own day only (<c>Start.Date == today</c>), and once per flight
+    /// (<see cref="FlightEntity.AgeCategoryCountsCapturedAtUtc"/> null). Worst case
+    /// is three extra GETs per national flight, on its flight day.
+    /// </summary>
+    private async Task CaptureNationalAgeCategoryCountsAsync(
+        AppDbContext db,
+        int selectedFancierId,
+        CancellationToken cancellationToken)
+    {
+        var today = DateTime.Now.Date;
+
+        var candidates = await db.Flights
+            .Where(f => f.Type == "national" && f.AgeCategoryCountsCapturedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var flight in candidates.Where(f => f.Start.Date == today))
+        {
+            try
+            {
+                var elder = await FetchAgeCategoryCountAsync(flight.Id, AgeCategory.Elder, selectedFancierId, cancellationToken);
+                var yearling = await FetchAgeCategoryCountAsync(flight.Id, AgeCategory.Yearling, selectedFancierId, cancellationToken);
+                var youth = await FetchAgeCategoryCountAsync(flight.Id, AgeCategory.Youth, selectedFancierId, cancellationToken);
+
+                // Only lock the counts in once all three fetches succeed; a null means
+                // a failed/blank response, so leave the flight uncaptured and retry on
+                // a later sync the same day rather than persisting a partial reading.
+                if (elder is null || yearling is null || youth is null)
+                    continue;
+
+                flight.AgeCategoryElderCount = elder;
+                flight.AgeCategoryYearlingCount = yearling;
+                flight.AgeCategoryYouthCount = youth;
+                flight.AgeCategoryCountsCapturedAtUtc = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch
+            {
+                // Best-effort per flight; will retry on the next sync while still today.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads the total participant count for one age category of a flight. The
+    /// results endpoint returns the category total in <c>count</c> regardless of
+    /// paging, so we request a single-row page to minimise payload. Returns null
+    /// when the response is unavailable or unparseable.
+    /// </summary>
+    private async Task<int?> FetchAgeCategoryCountAsync(
+        int flightId,
+        AgeCategory category,
+        int selectedFancierId,
+        CancellationToken cancellationToken)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["page"] = "1",
+            ["pageSize"] = "1",
+            ["ageType"] = category.ToString(),
+            ["activeSort"] = "position",
+            ["sortDirection"] = "asc",
+        };
+
+        var response = await apiClient.GetJsonAsync($"/api/flight/{flightId}/results", query, cancellationToken);
+        await snapshotStore.SaveAsync($"/api/flight/{flightId}/results", query, response, selectedFancierId, cancellationToken: cancellationToken);
+
+        if (response.StatusCode is < 200 or >= 300 || string.IsNullOrEmpty(response.Body))
+            return null;
+
+        try
+        {
+            var page = JsonSerializer.Deserialize<FlightResultsResponse>(response.Body, JsonOptions);
+            return page?.Count;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Stamps flights that have no captured weather with the forecast for their date.
+    /// Flights are only discovered after they end, so the live forecast no longer
+    /// covers the flight date; instead we reconstruct it from the /api/weather
+    /// snapshots that the sync stored over time. For each date we keep the entry from
+    /// the latest snapshot that still forecast it — a forecast entry for date D only
+    /// appears in snapshots captured on or before D, so the latest capture is the
+    /// reading closest to the flight and thus the most accurate available.
+    /// </summary>
+    private async Task BackfillFlightWeatherAsync(
+        AppDbContext db,
+        int selectedFancierId,
+        CancellationToken cancellationToken)
+    {
+        var flightsNeedingWeather = await db.Flights
+            .Where(f => f.WeatherCapturedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
+        if (flightsNeedingWeather.Count == 0)
+            return;
+
+        var weatherSnapshots = await db.RawApiSnapshots
+            .AsNoTracking()
+            .Where(x => x.SelectedFancierId == selectedFancierId
+                && x.Endpoint == "/api/weather"
+                && x.StatusCode >= 200 && x.StatusCode < 300)
+            // Order by Id (== capture order), not CapturedAtUtc: SQLite can't ORDER BY
+            // a DateTimeOffset. The "latest capture wins" choice is made in memory
+            // below via the CapturedAtUtc comparison, so iteration order is immaterial.
+            .OrderBy(x => x.Id)
+            .Select(x => new { x.ResponseBodyJson, x.CapturedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        if (weatherSnapshots.Count == 0)
+            return;
+
+        var bestByDate = new Dictionary<DateTime, (WeatherForecastDto Forecast, DateTimeOffset CapturedAtUtc)>();
+        foreach (var snapshot in weatherSnapshots)
+        {
+            List<WeatherForecastDto>? forecasts;
+            try
+            {
+                forecasts = JsonSerializer.Deserialize<List<WeatherForecastDto>>(snapshot.ResponseBodyJson, JsonOptions);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            if (forecasts is null)
+                continue;
+
+            foreach (var forecast in forecasts)
+            {
+                if (forecast.Date is not { } date)
+                    continue;
+
+                var day = date.Date;
+                if (!bestByDate.TryGetValue(day, out var existing)
+                    || snapshot.CapturedAtUtc > existing.CapturedAtUtc)
+                {
+                    bestByDate[day] = (forecast, snapshot.CapturedAtUtc);
+                }
+            }
+        }
+
+        var changed = false;
+        foreach (var flight in flightsNeedingWeather)
+        {
+            if (!bestByDate.TryGetValue(flight.Start.Date, out var match))
+                continue;
+
+            var forecast = match.Forecast;
+            flight.WeatherTemperature = forecast.Temperature;
+            flight.WeatherHumidity = forecast.Humidity;
+            flight.WeatherWind = forecast.Wind;
+            flight.WeatherBeaufort = forecast.Beaufort;
+            flight.WeatherDay = forecast.Day;
+            flight.WeatherCondition = forecast.Condition;
+            flight.WeatherCapturedAtUtc = match.CapturedAtUtc;
+            changed = true;
+        }
+
+        if (changed)
+            await db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<IReadOnlySet<int>> DiscoverFlightIdsAsync(

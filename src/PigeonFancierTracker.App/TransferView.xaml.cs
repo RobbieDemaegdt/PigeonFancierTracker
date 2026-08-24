@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Media;
 using System.Windows.Threading;
 using PigeonFancierTracker.Core.Contracts;
 using PigeonFancierTracker.Core.Domain;
@@ -16,6 +15,8 @@ public partial class TransferView : UserControl
     private readonly IAutoBidService autoBidService;
     private readonly IMarketAnalysisReader marketAnalysisReader;
     private readonly ISyncCoordinator syncCoordinator;
+    private int? selectedActiveTransferId;
+    private int? selectedCompletedTransferId;
 
     public TransferView(
         ITransferDataReader transferDataReader,
@@ -32,9 +33,13 @@ public partial class TransferView : UserControl
         this.syncCoordinator = syncCoordinator;
         autoBidService.EntryChanged += AutoBidService_EntryChanged;
         autoBidService.LogMessage += AutoBidService_LogMessage;
-        ActiveDetailPanel.CloseRequested += (_, _) => ActiveTransferGrid.SelectedItem = null;
-        ActiveDetailPanel.AddToAutoBidRequested += ActiveDetailPanel_AddToAutoBid;
-        CompletedDetailPanel.CloseRequested += (_, _) => CompletedTransferGrid.SelectedItem = null;
+        ActiveSummaryPanel.OpenDetailsRequested += (_, item) => OpenTransferDetail(item, showAutoBid: true);
+        ActiveSummaryPanel.AddToAutoBidRequested += (_, item) => AddTransferToAutoBid(item, ActiveSummaryPanel.AutoBidMaxPriceText);
+        CompletedSummaryPanel.OpenDetailsRequested += (_, item) => OpenTransferDetail(item, showAutoBid: false);
+        CompletedSummaryPanel.SaveRequested += CompletedSummaryPanel_SaveRequested;
+        CompletedSummaryPanel.RecheckRequested += CompletedSummaryPanel_RecheckRequested;
+        TransferFullDetailPanel.CloseRequested += (_, _) => ShowTransferList();
+        TransferFullDetailPanel.AddToAutoBidRequested += (_, item) => AddTransferToAutoBid(item, TransferFullDetailPanel.AutoBidMaxPriceText);
         Loaded += TransferView_Loaded;
     }
 
@@ -44,6 +49,12 @@ public partial class TransferView : UserControl
         if (fancierId is not int selectedFancierId)
         {
             TransferStatusText.Text = "Selecteer een melker voordat je transfers bekijkt.";
+            selectedActiveTransferId = null;
+            selectedCompletedTransferId = null;
+            ActiveTransferGrid.ItemsSource = null;
+            CompletedTransferGrid.ItemsSource = null;
+            ActiveSummaryPanel.ShowEmpty("Selecteer eerst een melker.");
+            CompletedSummaryPanel.ShowEmpty("Selecteer eerst een melker.");
             return;
         }
 
@@ -53,17 +64,23 @@ public partial class TransferView : UserControl
             var data = await transferDataReader.GetTransferDataAsync(selectedFancierId);
 
             ActiveTransferGrid.ItemsSource = data.ActiveTransfers;
+            ActiveTransferGrid.SelectedItem = data.ActiveTransfers.FirstOrDefault(item => item.TransferId == selectedActiveTransferId)
+                ?? data.ActiveTransfers.FirstOrDefault();
             ActiveTransferCountText.Text = data.ActiveTransfers.Count == 0
                 ? "Geen actieve transfers gevonden in lokale momentopnames."
                 : $"{data.ActiveTransfers.Count} actieve transfer(s).";
 
             CompletedTransferGrid.ItemsSource = data.CompletedTransfers;
+            CompletedTransferGrid.SelectedItem = data.CompletedTransfers.FirstOrDefault(item => item.TransferId == selectedCompletedTransferId)
+                ?? data.CompletedTransfers.FirstOrDefault();
             CompletedTransferCountText.Text = data.CompletedTransfers.Count == 0
                 ? "Nog geen voltooide transfers gedetecteerd. Voltooide transfers verschijnen wanneer een aanbieding verdwijnt tussen syncs."
                 : $"{data.CompletedTransfers.Count} voltooide transfer(s).";
 
-            ActiveDetailPanel.HideDetail();
-            CompletedDetailPanel.HideDetail();
+            if (data.ActiveTransfers.Count == 0)
+                ActiveSummaryPanel.ShowEmpty("Synchroniseer om actieve transferaanbiedingen te laden.");
+            if (data.CompletedTransfers.Count == 0)
+                CompletedSummaryPanel.ShowEmpty("Voltooide transfers verschijnen nadat een aanbieding tussen synchronisaties verdwijnt.");
 
             PopulateMarketAnalysis(data);
 
@@ -115,100 +132,86 @@ public partial class TransferView : UserControl
     private void ActiveTransferGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ActiveTransferGrid.SelectedItem is TransferListItem item)
-            ActiveDetailPanel.ShowDetail(item, showAutoBid: true);
+        {
+            selectedActiveTransferId = item.TransferId;
+            ActiveSummaryPanel.ShowSummary(item, showAutoBid: true, allowEdit: false);
+        }
         else
-            ActiveDetailPanel.HideDetail();
+            ActiveSummaryPanel.ShowEmpty("Selecteer een transfer om prijs, marktcontext en vaardigheden te bekijken.");
     }
 
     private void CompletedTransferGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (CompletedTransferGrid.SelectedItem is TransferListItem item)
-            CompletedDetailPanel.ShowDetail(item, showAutoBid: false);
+        {
+            selectedCompletedTransferId = item.TransferId;
+            CompletedSummaryPanel.ShowSummary(item, showAutoBid: false, allowEdit: true);
+        }
         else
-            CompletedDetailPanel.HideDetail();
+            CompletedSummaryPanel.ShowEmpty("Selecteer een transfer om verkoopgegevens en marktcontext te bekijken.");
     }
 
-    private async void SaveRowButton_Click(object sender, RoutedEventArgs e)
+    private void OpenTransferDetail(TransferListItem item, bool showAutoBid)
     {
-        if (sender is not Button { DataContext: TransferListItem item } button)
-            return;
+        TransferDetailPageTitle.Text = item.PigeonName;
+        TransferListPage.Visibility = Visibility.Collapsed;
+        TransferDetailPage.Visibility = Visibility.Visible;
+        TransferFullDetailPanel.ShowDetail(item, showAutoBid);
+    }
+
+    private void BackToTransferList_Click(object sender, RoutedEventArgs e) => ShowTransferList();
+
+    private void ShowTransferList()
+    {
+        TransferDetailPage.Visibility = Visibility.Collapsed;
+        TransferListPage.Visibility = Visibility.Visible;
+    }
+
+    private async void CompletedSummaryPanel_SaveRequested(object? sender, TransferSummarySaveRequestedEventArgs args)
+    {
+        var item = args.Item;
 
         var fancierId = sessionState.Current.SelectedFancier?.Id;
         if (fancierId is not int selectedFancierId)
             return;
 
-        var row = FindVisualParent<DataGridRow>(button);
-        if (row is null)
+        const NumberStyles priceStyles = NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands | NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite;
+        var priceText = args.SoldPriceText.Trim();
+        decimal? newPrice = string.IsNullOrEmpty(priceText)
+            ? null
+            : decimal.TryParse(priceText, priceStyles, CultureInfo.CurrentCulture, out var parsed)
+                ? parsed
+                : decimal.TryParse(priceText, priceStyles, CultureInfo.InvariantCulture, out parsed)
+                    ? parsed
+                    : null;
+        if (!string.IsNullOrEmpty(priceText) && newPrice is null)
+        {
+            ShowRecheckMessage("Voer een geldige verkoopprijs in.");
             return;
+        }
 
         var changed = false;
-
-        var statusCombo = FindVisualChildByTag<ComboBox>(row, "StatusEditor");
-        if (statusCombo?.SelectedItem is string selectedStatus && selectedStatus != item.TimeRemaining)
+        if (args.Status != item.Status)
         {
-            var newStatus = selectedStatus == "Sold" ? TransferStatus.Sold : TransferStatus.Expired;
-            await transferDataReader.UpdateTransferStatusAsync(selectedFancierId, item.TransferId, newStatus);
+            await transferDataReader.UpdateTransferStatusAsync(selectedFancierId, item.TransferId, args.Status);
             changed = true;
         }
 
-        var priceBox = FindVisualChildByTag<TextBox>(row, "PriceEditor");
-        if (priceBox is not null)
+        if (newPrice != item.SoldPrice)
         {
-            const NumberStyles priceStyles = NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite;
-            var text = priceBox.Text?.Trim();
-            decimal? newPrice = decimal.TryParse(text, priceStyles, CultureInfo.CurrentCulture, out var parsed)
-                ? parsed
-                : decimal.TryParse(text, priceStyles, CultureInfo.InvariantCulture, out parsed)
-                    ? parsed
-                    : null;
-
-            if (newPrice != item.SoldPrice)
-            {
-                await transferDataReader.UpdateTransferSoldPriceAsync(selectedFancierId, item.TransferId, newPrice);
-                changed = true;
-            }
+            await transferDataReader.UpdateTransferSoldPriceAsync(selectedFancierId, item.TransferId, newPrice);
+            changed = true;
         }
 
-        var buyerBox = FindVisualChildByTag<TextBox>(row, "BuyerEditor");
-        if (buyerBox is not null)
+        var newBuyer = string.IsNullOrWhiteSpace(args.Buyer) ? null : args.Buyer.Trim();
+        if (newBuyer != item.Buyer)
         {
-            var newBuyer = buyerBox.Text?.Trim();
-            if (newBuyer != item.Buyer)
-            {
-                await transferDataReader.UpdateTransferBuyerAsync(selectedFancierId, item.TransferId, newBuyer);
-                changed = true;
-            }
+            await transferDataReader.UpdateTransferBuyerAsync(selectedFancierId, item.TransferId, newBuyer);
+            changed = true;
         }
 
         if (changed)
             await RefreshAsync();
-    }
-
-    private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
-    {
-        while (child is not null)
-        {
-            child = VisualTreeHelper.GetParent(child);
-            if (child is T result)
-                return result;
-        }
-        return null;
-    }
-
-    private static T? FindVisualChildByTag<T>(DependencyObject parent, string tag) where T : FrameworkElement
-    {
-        var count = VisualTreeHelper.GetChildrenCount(parent);
-        for (var i = 0; i < count; i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T fe && fe.Tag as string == tag)
-                return fe;
-
-            var found = FindVisualChildByTag<T>(child, tag);
-            if (found is not null)
-                return found;
-        }
-        return null;
     }
 
     private void PopulateMarketAnalysisExtended(MarketAnalysisPageData analysis)
@@ -280,15 +283,9 @@ public partial class TransferView : UserControl
         }
     }
 
-    private void ActiveDetailPanel_AddToAutoBid(object? sender, TransferListItem _)
+    private void AddTransferToAutoBid(TransferListItem item, string maxPriceText)
     {
-        if (ActiveTransferGrid.SelectedItem is not TransferListItem item)
-        {
-            AutoBidLogText.Text = "Selecteer eerst een actieve transfer.";
-            return;
-        }
-
-        if (!decimal.TryParse(ActiveDetailPanel.AutoBidMaxPriceText, out var maxPrice) || maxPrice <= 0)
+        if (!decimal.TryParse(maxPriceText, NumberStyles.Number, CultureInfo.CurrentCulture, out var maxPrice) || maxPrice <= 0)
         {
             AutoBidLogText.Text = "Voer een geldige max prijs in.";
             return;
@@ -345,11 +342,8 @@ public partial class TransferView : UserControl
         }
     }
 
-    private async void RecheckButton_Click(object sender, RoutedEventArgs e)
+    private async void CompletedSummaryPanel_RecheckRequested(object? sender, TransferListItem item)
     {
-        if (sender is not Button { DataContext: TransferListItem item })
-            return;
-
         var fancierId = sessionState.Current.SelectedFancier?.Id;
         if (fancierId is not int selectedFancierId)
             return;

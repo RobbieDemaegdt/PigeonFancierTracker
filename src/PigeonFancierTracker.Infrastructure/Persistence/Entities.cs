@@ -84,6 +84,27 @@ public sealed class FlightEntity
     public int Subscribers { get; set; }
     public DateTimeOffset DetectedAtUtc { get; set; }
     public DateTimeOffset? ResultsFetchedAtUtc { get; set; }
+
+    // Weather captured near flight time from the /api/weather forecast. Nullable
+    // because it can only be recorded while the forecast still covers the flight
+    // date; historical flights ingested before this feature stay null.
+    public decimal? WeatherTemperature { get; set; }
+    public decimal? WeatherHumidity { get; set; }
+    public decimal? WeatherWind { get; set; }
+    public int? WeatherBeaufort { get; set; }
+    public bool? WeatherDay { get; set; }
+    public string? WeatherCondition { get; set; }
+    public DateTimeOffset? WeatherCapturedAtUtc { get; set; }
+
+    // Per-age-category participant counts for national flights, captured on the
+    // flight's own day from the ageType-filtered results endpoint. Nullable
+    // because they're only fetched once, on flight day, and only for national
+    // flights; every other flight stays null and falls back to the combined
+    // prize table. AgeCategoryCountsCapturedAtUtc also gates re-querying.
+    public int? AgeCategoryElderCount { get; set; }
+    public int? AgeCategoryYearlingCount { get; set; }
+    public int? AgeCategoryYouthCount { get; set; }
+    public DateTimeOffset? AgeCategoryCountsCapturedAtUtc { get; set; }
 }
 
 public sealed class OffspringCacheEntity
