@@ -143,12 +143,18 @@ public sealed class RankingDataReader(IDbContextFactory<AppDbContext> contextFac
 
         foreach (var item in array.EnumerateArray())
         {
-            var pigeonId = TryGetInt(item, "pigeonId") ?? TryGetInt(item, "id") ?? 0;
-            var pigeonName = TryGetString(item, "pigeonName") ?? TryGetString(item, "displayName")
+            var (nestedPigeonId, nestedPigeonName) = ResolveNested(item, "pigeon");
+            var pigeonId = nestedPigeonId ?? TryGetInt(item, "pigeonId") ?? TryGetInt(item, "id") ?? 0;
+            var pigeonName = nestedPigeonName
+                ?? TryGetString(item, "pigeonName") ?? TryGetString(item, "displayName")
                 ?? TryGetString(item, "name") ?? $"#{pigeonId}";
-            var fId = TryGetInt(item, "fancierId") ?? 0;
-            var fancierName = TryGetString(item, "fancier") ?? TryGetString(item, "fancierName")
-                ?? TryGetString(item, "fancierDisplayName") ?? $"#{fId}";
+
+            var (nestedFancierId, nestedFancierName) = ResolveNested(item, "fancier");
+            var fId = nestedFancierId ?? TryGetInt(item, "fancierId") ?? 0;
+            var fancierName = nestedFancierName
+                ?? TryGetString(item, "fancierName") ?? TryGetString(item, "fancierDisplayName")
+                ?? $"#{fId}";
+
             var points = TryGetInt(item, "points") ?? TryGetInt(item, "totalPoints") ?? 0;
             var pos = TryGetInt(item, "position") ?? position;
 
@@ -297,10 +303,11 @@ public sealed class RankingDataReader(IDbContextFactory<AppDbContext> contextFac
 
         foreach (var item in array.EnumerateArray())
         {
-            var id = TryGetInt(item, "id") ?? TryGetInt(item, "fancierId") ?? 0;
-            var name = TryGetString(item, "displayName")
+            var (nestedId, nestedName) = ResolveNested(item, "fancier");
+            var id = nestedId ?? TryGetInt(item, "fancierId") ?? TryGetInt(item, "id") ?? 0;
+            var name = nestedName
+                ?? TryGetString(item, "displayName")
                 ?? TryGetString(item, "name")
-                ?? TryGetString(item, "fancier")
                 ?? $"#{id}";
             var points = TryGetInt(item, "points") ?? TryGetInt(item, "totalPoints") ?? 0;
             var pos = TryGetInt(item, "position") ?? position;
@@ -310,6 +317,18 @@ public sealed class RankingDataReader(IDbContextFactory<AppDbContext> contextFac
         }
 
         return entries;
+    }
+
+    private static (int? Id, string? Name) ResolveNested(JsonElement item, string objectProperty)
+    {
+        if (item.TryGetProperty(objectProperty, out var obj) && obj.ValueKind == JsonValueKind.Object)
+        {
+            var id = TryGetInt(obj, "id");
+            var name = TryGetString(obj, "displayName") ?? TryGetString(obj, "name");
+            return (id, name);
+        }
+
+        return (null, null);
     }
 
     private static List<PigeonRankingEntry>? TryParsePigeonRanking(
@@ -326,10 +345,12 @@ public sealed class RankingDataReader(IDbContextFactory<AppDbContext> contextFac
 
         foreach (var item in prop.EnumerateArray())
         {
-            var pigeonId = TryGetInt(item, "pigeonId") ?? TryGetInt(item, "id") ?? 0;
-            var pigeonName = TryGetString(item, "pigeonName") ?? TryGetString(item, "name") ?? $"#{pigeonId}";
-            var fId = TryGetInt(item, "fancierId") ?? 0;
-            var fancierName = TryGetString(item, "fancier") ?? TryGetString(item, "fancierName") ?? $"#{fId}";
+            var (nestedPigeonId, nestedPigeonName) = ResolveNested(item, "pigeon");
+            var pigeonId = nestedPigeonId ?? TryGetInt(item, "pigeonId") ?? TryGetInt(item, "id") ?? 0;
+            var pigeonName = nestedPigeonName ?? TryGetString(item, "pigeonName") ?? TryGetString(item, "name") ?? $"#{pigeonId}";
+            var (nestedFancierId, nestedFancierName) = ResolveNested(item, "fancier");
+            var fId = nestedFancierId ?? TryGetInt(item, "fancierId") ?? 0;
+            var fancierName = nestedFancierName ?? TryGetString(item, "fancierName") ?? $"#{fId}";
             var points = TryGetInt(item, "points") ?? TryGetInt(item, "totalPoints") ?? 0;
             var pos = TryGetInt(item, "position") ?? position;
 

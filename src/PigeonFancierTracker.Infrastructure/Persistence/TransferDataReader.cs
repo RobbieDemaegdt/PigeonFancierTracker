@@ -154,6 +154,63 @@ public sealed class TransferDataReader(
         }
 
         await UpgradeExpiredToSoldAsync(db, transferSnapshots, selectedFancierId, cancellationToken);
+
+        await BackfillMissingSkillsAsync(db, transferSnapshots, nameTranslations, selectedFancierId, cancellationToken);
+    }
+
+    // Repairs historical completed transfers that were persisted without skills (e.g. sold offers
+    // whose only source was a skills-less processed response). Recovers skills from any active
+    // snapshot that still holds them for the same transfer.
+    private static async Task BackfillMissingSkillsAsync(
+        AppDbContext db,
+        List<RawApiSnapshotEntity> transferSnapshots,
+        PigeonNameTranslations nameTranslations,
+        int selectedFancierId,
+        CancellationToken cancellationToken)
+    {
+        var entitiesMissingSkills = await db.CompletedTransfers
+            .Where(x => x.SelectedFancierId == selectedFancierId
+                && (x.SkillsJson == null || x.SkillsJson == ""))
+            .ToListAsync(cancellationToken);
+
+        if (entitiesMissingSkills.Count == 0)
+            return;
+
+        var activeItemsById = transferSnapshots
+            .Where(x => x.NormalizedQuery.Contains("processed=false", StringComparison.OrdinalIgnoreCase)
+                && !x.NormalizedQuery.Contains("fancierId=", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.CapturedAtUtc)
+            .SelectMany(s => DeserializeTransfers(s.ResponseBodyJson))
+            .Where(x => x.Id.HasValue && x.Pigeon?.Skills is not null)
+            .GroupBy(x => x.Id!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        if (activeItemsById.Count == 0)
+            return;
+
+        var changed = false;
+        foreach (var entity in entitiesMissingSkills)
+        {
+            if (!activeItemsById.TryGetValue(entity.TransferId, out var activeItem))
+                continue;
+
+            var status = Enum.TryParse<TransferStatus>(entity.Status, out var s) ? s : TransferStatus.Expired;
+            var rebuilt = CreateTransferListItem(activeItem, nameTranslations, status);
+            var skillsJson = SerializeSkills(rebuilt);
+            if (skillsJson is null)
+                continue;
+
+            entity.SkillsJson = skillsJson;
+            entity.Sex ??= rebuilt.Sex;
+            entity.Age ??= rebuilt.Age;
+            entity.Breed ??= rebuilt.Breed;
+            if (string.IsNullOrEmpty(entity.PigeonName))
+                entity.PigeonName = rebuilt.PigeonName;
+            changed = true;
+        }
+
+        if (changed)
+            await db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task UpgradeExpiredToSoldAsync(
@@ -596,7 +653,7 @@ public sealed class TransferDataReader(
                 && processedItem.Price is not null)
             {
                 completed.Add(CreateTransferListItem(
-                    processedItem, nameTranslations, TransferStatus.Sold));
+                    MergePigeonSkills(processedItem, item), nameTranslations, TransferStatus.Sold));
                 continue;
             }
 
@@ -608,7 +665,7 @@ public sealed class TransferDataReader(
                 if (pigeonMatch is { Buyer: not null, Price: not null })
                 {
                     completed.Add(CreateTransferListItem(
-                        pigeonMatch, nameTranslations, TransferStatus.Sold));
+                        MergePigeonSkills(pigeonMatch, item), nameTranslations, TransferStatus.Sold));
                     continue;
                 }
             }
@@ -674,6 +731,14 @@ public sealed class TransferDataReader(
     }
 
     private bool HasApiAccess => apiClient is not null;
+
+    // Processed-transfer responses (sold/expired) frequently omit pigeon.skills, whereas the
+    // active snapshot the offer disappeared from carries them. Prefer the processed DTO when it
+    // has skills, otherwise fall back to the active item's pigeon so stats survive completion.
+    private static TransferItemDto MergePigeonSkills(TransferItemDto processed, TransferItemDto active)
+        => processed.Pigeon?.Skills is not null
+            ? processed
+            : processed with { Pigeon = active.Pigeon ?? processed.Pigeon };
 
     private static TransferListItem CreateTransferListItem(
         TransferItemDto item,

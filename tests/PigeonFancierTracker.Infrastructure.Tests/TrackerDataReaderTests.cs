@@ -117,10 +117,14 @@ public sealed class TrackerDataReaderTests
         result.Pigeons.Should().ContainSingle();
         result.SelectedPigeon!.DisplayName.Should().Be("Tom Ape-head");
         result.SelectedPigeon.Breed.Should().Be("Janssen");
+        // Points are returned newest-first (the reader reverses after computing
+        // deltas), so Points[0] is the most recent observation. The UI relies on
+        // this (PigeonHistoryView treats Points[0] as the latest).
         result.Points.Should().HaveCount(2);
-        result.Points[0].ObservedAtUtc.Should().Be(firstObserved);
-        result.Points[0].TotalSkill.Should().Be(86m);
-        result.Points[1].TotalSkill.Should().Be(88m);
+        result.Points[0].ObservedAtUtc.Should().Be(secondObserved);
+        result.Points[0].TotalSkill.Should().Be(88m);
+        result.Points[1].ObservedAtUtc.Should().Be(firstObserved);
+        result.Points[1].TotalSkill.Should().Be(86m);
         result.Points[1].SourceSnapshotId.Should().NotBe(result.Points[0].SourceSnapshotId);
     }
 
@@ -161,9 +165,10 @@ public sealed class TrackerDataReaderTests
 
         result.Pigeons.Should().ContainSingle();
         result.SelectedPigeon!.SourceId.Should().Be(59);
+        // Newest-first: Points[0] is the more recent snapshot (total 9 -> 15).
         result.Points.Should().HaveCount(2);
-        result.Points[0].TotalSkill.Should().Be(14);
-        result.Points[1].TotalSkill.Should().Be(15);
+        result.Points[0].TotalSkill.Should().Be(15);
+        result.Points[1].TotalSkill.Should().Be(14);
     }
 
     private sealed class TestDatabase : IAsyncDisposable

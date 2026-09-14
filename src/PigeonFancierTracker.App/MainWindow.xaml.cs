@@ -103,7 +103,7 @@ public partial class MainWindow : Window
             await connectionView.TryRestoreSessionAsync();
             if (sessionState.Current.State == SessionState.AuthenticatedReady)
             {
-                connectionView.StartSync();
+                connectionView.StartSync(SyncProfile.Standard);
             }
         }
         catch

@@ -70,7 +70,10 @@
 
                             <!-- Active segment: full-width detail (usually a single flight) -->
                             <StackPanel x:Name="ActiveSegmentPanel">
-                                <TextBlock x:Name="ActiveFlightHeaderText" Text="Geen actieve vlucht op dit moment." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                <DockPanel Margin="0,0,0,10">
+                                    <Button x:Name="RefreshActiveFlightButton" Content="Ververs actieve vlucht" Style="{StaticResource SecondaryButtonStyle}" Click="RefreshActiveFlight_Click" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12,0,0,0" />
+                                    <TextBlock x:Name="ActiveFlightHeaderText" Text="Geen actieve vlucht op dit moment." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </DockPanel>
 
                                 <StackPanel x:Name="ActiveFlightDetails" Visibility="Collapsed">
                                     <DockPanel Margin="0,0,0,6">
@@ -144,15 +147,19 @@
 
                                     <StackPanel x:Name="CompletedListContainer" Visibility="Collapsed">
                                         <TextBlock x:Name="CompletedFlightsStatusText" Text="Voltooide vluchten laden..." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                                        <DataGrid x:Name="CompletedFlightsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="440" GridLinesVisibility="Horizontal" SelectionChanged="CompletedFlightsGrid_SelectionChanged" Visibility="Collapsed" Cursor="Hand">
+                                        <DataGrid x:Name="CompletedFlightsGrid" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="440" GridLinesVisibility="Horizontal" SelectionChanged="CompletedFlightsGrid_SelectionChanged" CellEditEnding="CompletedFlightsGrid_CellEditEnding" Visibility="Collapsed">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Datum" Binding="{Binding FlightDate, StringFormat={}{0:dd-MM-yyyy HH:mm}}" Width="140" />
-                                                <DataGridTextColumn Header="Locatie" Binding="{Binding Location}" Width="1.4*" />
-                                                <DataGridTextColumn Header="Afstand" Binding="{Binding DistanceKm, StringFormat={}{0} km}" Width="80" />
-                                                <DataGridTextColumn Header="Cat." Binding="{Binding Category}" Width="65" />
-                                                <DataGridTextColumn Header="Beste pos." Binding="{Binding BestPosition}" Width="80" />
+                                                <DataGridTextColumn Header="Datum" Binding="{Binding FlightDate, StringFormat={}{0:dd-MM-yyyy HH:mm}}" Width="140" IsReadOnly="True" />
+                                                <DataGridTextColumn Header="Locatie" Binding="{Binding Location, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="1.4*" />
+                                                <DataGridTextColumn Header="Afstand (km)" Binding="{Binding DistanceKm, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="90" />
+                                                <DataGridTextColumn Header="Cat." Binding="{Binding Category}" Width="65" IsReadOnly="True" />
+                                                <DataGridTextColumn Header="Beste pos." Binding="{Binding BestPosition}" Width="80" IsReadOnly="True" />
                                             </DataGrid.Columns>
                                         </DataGrid>
+                                        <DockPanel Margin="0,8,0,0">
+                                            <Button x:Name="ResetFlightOverrideButton" Content="Herstel naar automatisch" Style="{StaticResource SecondaryButtonStyle}" Click="ResetFlightOverride_Click" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                                            <TextBlock Text="Klopt de locatie of afstand niet? Dubbelklik op de cel om ze handmatig te corrigeren. De correctie blijft bewaard, ook na een nieuwe sync." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
                                     </StackPanel>
                                 </Grid>
 
@@ -210,6 +217,7 @@
                                     <TextBlock Text="Selecteer een duif in het Afstandsprofiel (tabblad Analyse) om te filteren." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,2,0,0" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Button x:Name="ClearResultsFilterButton" Content="Toon alle" Style="{StaticResource SecondaryButtonStyle}" Click="ClearResultsFilter_Click" Margin="0,0,12,0" VerticalAlignment="Center" />
                                     <TextBlock Text="Filter:" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                     <ComboBox x:Name="CategoryFilterCombo" Width="120" SelectionChanged="CategoryFilter_Changed" SelectedIndex="0">
                                         <ComboBoxItem Content="Alle" />
@@ -269,7 +277,7 @@
                             <TextBlock Text="Voederanalyse" Foreground="{DynamicResource HeadingTextBrush}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
                             <TextBlock Text="Vergelijkt de prestaties per voedermix om te zien welke mix het beste werkt." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
                             <TextBlock x:Name="FoodAnalysisStatus" Text="" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,6" />
-                            <DataGrid x:Name="FoodAnalysisGrid" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="300" GridLinesVisibility="Horizontal" CellEditEnding="FoodAnalysisGrid_CellEditEnding">
+                            <DataGrid x:Name="FoodAnalysisGrid" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="60" MaxHeight="300" GridLinesVisibility="Horizontal" SelectionMode="Single" Cursor="Hand" CellEditEnding="FoodAnalysisGrid_CellEditEnding" SelectionChanged="FoodAnalysisGrid_SelectionChanged">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Voedermix" Binding="{Binding Mix.Display}" IsReadOnly="True" Width="1.5*" />
                                     <DataGridTextColumn Header="# Vluchten" Binding="{Binding FlightCount}" IsReadOnly="True" Width="75" />
@@ -284,6 +292,24 @@
                                     <DataGridTextColumn Header="Lang #" Binding="{Binding Long.FlightCount}" IsReadOnly="True" Width="50" />
                                     <DataGridTextColumn Header="Lang %" Binding="{Binding Long.AvgPercentile, StringFormat={}{0:0.0}}" IsReadOnly="True" Width="55" />
                                     <DataGridTextColumn Header="Opmerking" Binding="{Binding Comment, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="1.5*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <TextBlock Text="Vluchten voor de geselecteerde voedermix" Foreground="{DynamicResource HeadingTextBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,4" />
+                            <TextBlock x:Name="FoodMixFlightsStatus" Text="Klik op een voedermix hierboven om alle vluchten met die voederverdeling te zien." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                            <DataGrid x:Name="FoodMixFlightsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" MinHeight="40" MaxHeight="360" GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Datum" Binding="{Binding FlightDate, StringFormat={}{0:dd-MM-yyyy HH:mm}}" Width="140" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding FlightType}" Width="80" />
+                                    <DataGridTextColumn Header="Locatie" Binding="{Binding Location}" Width="120" />
+                                    <DataGridTextColumn Header="Afstand" Binding="{Binding FlightDistanceKm, StringFormat={}{0} km}" Width="80" />
+                                    <DataGridTextColumn Header="Cat." Binding="{Binding Category}" Width="65" />
+                                    <DataGridTextColumn Header="Duif" Binding="{Binding PigeonName}" Width="1.2*" />
+                                    <DataGridTextColumn Header="Positie" Binding="{Binding Position}" Width="60" />
+                                    <DataGridTextColumn Header="/ Totaal" Binding="{Binding TotalParticipants}" Width="65" />
+                                    <DataGridTextColumn Header="Top %" Binding="{Binding Percentile, StringFormat={}{0:0.0}%}" Width="65" />
+                                    <DataGridTextColumn Header="Punten" Binding="{Binding Points}" Width="60" />
+                                    <DataGridTextColumn Header="Gem. snelheid" Binding="{Binding AverageSpeed, StringFormat={}{0:0.00}}" Width="100" />
                                 </DataGrid.Columns>
                             </DataGrid>
 

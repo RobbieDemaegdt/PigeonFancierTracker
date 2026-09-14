@@ -38,13 +38,18 @@ public sealed class FlightResultsReader(
             .OrderBy(x => x.Id)
             .ToListAsync();
 
+        var homeLocation = await ReadFancierLocationAsync(db, fancierId);
+
         var recentResults = results
             .Select(x =>
             {
-                var pigeonDistance = x.Result.PigeonDistance > 0
-                    ? x.Result.PigeonDistance
-                    : x.Flight.DistanceKm;
-                var category = DistanceProfileCalculator.Classify(pigeonDistance);
+                // Resolve the flight's true location/distance: a manual override wins,
+                // else the great-circle distance from the fancier's loft to the release
+                // point (the officially-measured metric, and correct even when the API
+                // stored a placeholder distance), else the raw stored value. Classify
+                // by that flight-level distance, not the pigeon's individual one, so all
+                // participants in a flight stay in the same distance category.
+                var (location, distance, category) = ResolveFlightGeo(x.Flight, homeLocation);
 
                 var percentile = x.Result.TotalParticipants > 0
                     ? Math.Round((double)x.Result.Position / x.Result.TotalParticipants * 100, 1)
@@ -58,8 +63,8 @@ public sealed class FlightResultsReader(
                     x.Flight.Id,
                     x.Flight.Start,
                     x.Flight.Type,
-                    x.Flight.LocationName,
-                    pigeonDistance,
+                    location,
+                    distance,
                     category,
                     x.Result.Position,
                     x.Result.TotalParticipants,
@@ -291,6 +296,40 @@ public sealed class FlightResultsReader(
         return prizes.Count > 0 ? prizes : null;
     }
 
+    /// <summary>
+    /// Resolves a stored flight's effective location, distance and distance category,
+    /// preferring (1) a user-supplied manual override, then (2) the great-circle
+    /// distance from the fancier's loft to the flight's release coordinates — the
+    /// officially-measured metric, and the correction for flights whose API distance
+    /// is a placeholder — and finally (3) the raw stored distance when no coordinates
+    /// are available. The category is always classified from the resolved distance.
+    /// </summary>
+    private static (string? Location, int Distance, DistanceCategory Category) ResolveFlightGeo(
+        FlightEntity flight, FancierLocationDto? home)
+    {
+        var location = string.IsNullOrWhiteSpace(flight.LocationNameOverride)
+            ? flight.LocationName
+            : flight.LocationNameOverride;
+
+        int distance;
+        if (flight.DistanceKmOverride is { } overrideKm && overrideKm > 0)
+        {
+            distance = overrideKm;
+        }
+        else if (home?.Latitude is { } homeLat && home?.Longitude is { } homeLng
+            && flight.LocationLat is { } releaseLat && flight.LocationLng is { } releaseLng
+            && DistanceCalculator.HaversineKm((double)homeLat, (double)homeLng, releaseLat, releaseLng) is > 0 and var computed)
+        {
+            distance = computed;
+        }
+        else
+        {
+            distance = flight.DistanceKm;
+        }
+
+        return (location, distance, DistanceProfileCalculator.Classify(distance));
+    }
+
     private static int ComputeFlightDistance(FlightDto flight, FancierLocationDto? fancierLocation)
     {
         if (fancierLocation?.Latitude is { } fLat
@@ -356,11 +395,13 @@ public sealed class FlightResultsReader(
             .GroupBy(r => r.FlightId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        var homeLocation = await ReadFancierLocationAsync(db, fancierId);
+
         return flights
             .Select(f =>
             {
                 var flightType = ParseFlightType(f.Type);
-                var category = DistanceProfileCalculator.Classify(f.DistanceKm);
+                var (location, distance, category) = ResolveFlightGeo(f, homeLocation);
                 var prizeTable = PrizeCalculator.CalculatePrizeTable(f.Subscribers, flightType);
                 var totalPrizes = PrizeCalculator.GetTotalPrizePositions(f.Subscribers);
 
@@ -383,7 +424,7 @@ public sealed class FlightResultsReader(
                     : null;
 
                 return new CompletedFlightSummary(
-                    f.Id, f.Start, f.LocationName, f.Type, f.DistanceKm,
+                    f.Id, f.Start, location, f.Type, distance,
                     category, ownPigeonCount, bestPosition, totalParticipants,
                     totalPoints, prizeTable, totalPrizes, ageCategoryPrizes);
             })
@@ -402,6 +443,22 @@ public sealed class FlightResultsReader(
 
         foreach (var s in snapshots)
             s.Comment = comment;
+
+        await db.SaveChangesAsync();
+    }
+
+    public async Task SaveFlightOverrideAsync(int flightId, string? locationOverride, int? distanceOverride)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync();
+
+        var flight = await db.Flights.FirstOrDefaultAsync(f => f.Id == flightId);
+        if (flight is null)
+            return;
+
+        flight.LocationNameOverride = string.IsNullOrWhiteSpace(locationOverride)
+            ? null
+            : locationOverride.Trim();
+        flight.DistanceKmOverride = distanceOverride is > 0 ? distanceOverride : null;
 
         await db.SaveChangesAsync();
     }

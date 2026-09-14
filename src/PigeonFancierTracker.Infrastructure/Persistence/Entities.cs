@@ -79,6 +79,14 @@ public sealed class FlightEntity
     public double? LocationLng { get; set; }
     public int DistanceKm { get; set; }
     public required string DistanceCategory { get; set; }
+
+    // Manual corrections for flights whose synced location/distance is wrong (e.g.
+    // the API returned a placeholder distance such as a flat 220 km). Null means
+    // "use the value derived from the flight's coordinates / API"; a non-null value
+    // wins over both. These are user-owned and survive re-syncs and distance repair.
+    public string? LocationNameOverride { get; set; }
+    public int? DistanceKmOverride { get; set; }
+
     public required string AgeType { get; set; }
     public decimal EntryPrice { get; set; }
     public int Subscribers { get; set; }

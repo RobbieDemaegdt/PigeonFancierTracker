@@ -491,6 +491,85 @@ public sealed class TransferDataReaderTests
         entity.SoldPrice.Should().Be(850);
     }
 
+    [Fact]
+    public async Task Sold_transfer_preserves_skills_from_active_snapshot_when_processed_data_lacks_them()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+
+        await SeedAsync(database.Factory,
+            CreateActiveSnapshot(now, """
+                [{"id":1,"startPrice":500,"pigeon":{"id":10,"firstNameId":1},"fancier":{"id":99,"displayName":"Seller"},"bidders":[1]}]
+            """),
+            CreateActiveSnapshot(now.AddMinutes(-5), """
+                [{"id":1,"startPrice":500,"pigeon":{"id":10,"firstNameId":1},"fancier":{"id":99,"displayName":"Seller"},"bidders":[1]},
+                 {"id":2,"startPrice":300,"pigeon":{"id":11,"firstNameId":2,"skills":{"total":80,"speed":10}},"fancier":{"id":99,"displayName":"Seller"},"bidders":[1,2]}]
+            """),
+            CreateProcessedSnapshot(now, """
+                [{"id":2,"startPrice":300,"price":800,"pigeon":{"id":11,"firstNameId":2},"fancier":{"id":99,"displayName":"Seller"},
+                  "buyer":{"id":50,"displayName":"BuyerName"},"bidders":[1,2]}]
+            """),
+            CreateTranslationSnapshot());
+
+        var reader = new TransferDataReader(database.Factory, new StubTrackerDataReader());
+        var result = await reader.GetTransferDataAsync(FancierId);
+
+        result.CompletedTransfers.Should().ContainSingle();
+        var sold = result.CompletedTransfers[0];
+        sold.TransferId.Should().Be(2);
+        sold.Status.Should().Be(TransferStatus.Sold);
+        sold.SoldPrice.Should().Be(800);
+        sold.SoldTo.Should().Be("BuyerName");
+        sold.TotalSkill.Should().Be(86m);
+        sold.SpeedDisplay.Should().Be("11");
+    }
+
+    [Fact]
+    public async Task Backfills_skills_for_completed_transfer_persisted_without_skills()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+
+        await using (var db = database.Factory.CreateDbContext())
+        {
+            db.CompletedTransfers.Add(new CompletedTransferEntity
+            {
+                TransferId = 20,
+                PigeonId = 40,
+                SelectedFancierId = FancierId,
+                Status = "Sold",
+                StartPrice = 300,
+                SoldPrice = 900,
+                SoldTo = "OldBuyer",
+                PigeonName = "Skillless Pigeon",
+                BidCount = 2,
+                TransferStart = now.AddDays(-3),
+                TransferEnd = now.AddDays(-1),
+                DetectedAtUtc = now.AddMinutes(-30),
+                SkillsJson = null,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        await SeedAsync(database.Factory,
+            CreateActiveSnapshot(now, "[]"),
+            CreateActiveSnapshot(now.AddMinutes(-5), """
+                [{"id":20,"startPrice":300,"pigeon":{"id":40,"firstNameId":1,"skills":{"total":70,"speed":8}},"fancier":{"id":99,"displayName":"Seller"},"bidders":[1,2]}]
+            """),
+            CreateTranslationSnapshot());
+
+        var reader = new TransferDataReader(database.Factory, new StubTrackerDataReader());
+        var result = await reader.GetTransferDataAsync(FancierId);
+
+        await using var verifyDb = database.Factory.CreateDbContext();
+        var entity = await verifyDb.CompletedTransfers.SingleAsync(x => x.TransferId == 20);
+        entity.SkillsJson.Should().NotBeNullOrEmpty();
+
+        var completed = result.CompletedTransfers.Single(x => x.TransferId == 20);
+        completed.TotalSkill.Should().Be(76m);
+        completed.SpeedDisplay.Should().Be("9");
+    }
+
     private static RawApiSnapshotEntity CreateActiveSnapshot(DateTimeOffset capturedAt, string json) =>
         new()
         {

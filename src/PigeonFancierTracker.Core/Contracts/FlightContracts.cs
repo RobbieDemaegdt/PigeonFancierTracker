@@ -243,4 +243,5 @@ public interface IFlightResultsReader
     Task<IReadOnlyList<ActiveFlightInfo>> GetActiveFlightsAsync(int fancierId);
     Task<IReadOnlyList<CompletedFlightSummary>> GetCompletedFlightSummariesAsync(int fancierId);
     Task SaveFoodCommentAsync(int fancierId, FoodMix mix, string? comment);
+    Task SaveFlightOverrideAsync(int flightId, string? locationOverride, int? distanceOverride);
 }

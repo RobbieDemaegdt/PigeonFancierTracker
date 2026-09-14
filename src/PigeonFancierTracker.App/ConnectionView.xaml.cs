@@ -306,29 +306,42 @@ public partial class ConnectionView : UserControl
 
     public void StartSync()
     {
-        RunSync_Click(this, new RoutedEventArgs());
+        StartSync(SyncProfile.Quick);
     }
 
-    private async void RunSync_Click(object sender, RoutedEventArgs e)
+    public void StartSync(SyncProfile profile)
+    {
+        _ = RunSyncAsync(profile);
+    }
+
+    private void RunSync_Click(object sender, RoutedEventArgs e)
+    {
+        _ = RunSyncAsync(SyncProfile.Quick);
+    }
+
+    private async Task RunSyncAsync(SyncProfile profile)
     {
         if (sessionState.Current.State != SessionState.AuthenticatedReady || syncCoordinator.IsRunning)
         {
             return;
         }
 
+        var isStandard = profile == SyncProfile.Standard;
+        var syncLabel = isStandard ? "Volledige sync" : "Snelle sync";
+
         SyncProgressBar.Value = 0;
-        SyncProgressText.Text = "Snelle sync starten…";
+        SyncProgressText.Text = $"{syncLabel} starten…";
         SyncDetailText.Text = "De tracker bereidt de alleen-lezen eindpuntenlijst voor.";
         SyncSummaryText.Text = string.Empty;
         UpdateSyncControls();
 
         try
         {
-            var result = await syncCoordinator.SyncAsync(SyncProfile.Quick);
+            var result = await syncCoordinator.SyncAsync(profile);
             var successful = result.EndpointResults.Count(x => x.IsSuccess);
             var failed = result.EndpointResults.Count - successful;
             SyncProgressBar.Value = SyncProgressBar.Maximum;
-            SyncProgressText.Text = $"Snelle sync voltooid in {(result.CompletedAtUtc - result.StartedAtUtc).TotalSeconds:N1}s.";
+            SyncProgressText.Text = $"{syncLabel} voltooid in {(result.CompletedAtUtc - result.StartedAtUtc).TotalSeconds:N1}s.";
             SyncDetailText.Text = $"{successful} eindpunt(en) geslaagd; {failed} eindpunt(en) vereisen aandacht.";
             SyncSummaryText.Text = failed == 0
                 ? "Alle gevraagde data is lokaal vastgelegd."

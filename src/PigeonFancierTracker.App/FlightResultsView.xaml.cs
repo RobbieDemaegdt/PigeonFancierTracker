@@ -46,35 +46,46 @@ public partial class FlightResultsView : UserControl
                 : "Active";
             SelectSegment(initialSegment);
 
-            currentData = await flightResultsReader.GetFlightResultsAsync(selectedFancierId);
-
-            ProfileGrid.ItemsSource = currentData.PigeonProfiles;
-            ApplyResultsFilter();
-
-            if (currentData.FoodAnalysis is { } analysis && analysis.MixPerformances.Count > 0)
-            {
-                var rows = analysis.MixPerformances.Select(p => new FoodMixPerformanceRow(p)).ToList();
-                FoodAnalysisGrid.ItemsSource = rows;
-                FoodAnalysisStatus.Text = $"{analysis.MixPerformances.Count} voedermix(en) gevonden — gesorteerd op beste gemiddelde positie.";
-            }
-            else
-            {
-                FoodAnalysisGrid.ItemsSource = null;
-                FoodAnalysisStatus.Text = "Nog geen voedergegevens gekoppeld aan vluchten. Synchroniseer om voedergeschiedenis op te bouwen.";
-            }
-
-            LoadBreedAnalysis(currentData);
-
-            var resultCount = currentData.RecentResults.Count;
-            var profileCount = currentData.PigeonProfiles.Count;
-            FlightStatusText.Text = resultCount == 0
-                ? "Geen vluchtresultaten gevonden. Voer een sync uit na afgelopen vluchten."
-                : $"{resultCount} resultaten voor {profileCount} duiven.";
+            await LoadResultsDataAsync(selectedFancierId);
         }
         catch (Exception ex)
         {
             FlightStatusText.Text = $"Fout bij laden: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Loads the local results dataset (results grid, distance profiles, food and
+    /// breed analysis) without touching the network or changing the active segment.
+    /// Reused after a manual flight correction so the edited distance/category flows
+    /// everywhere without bouncing the user off the Completed tab.
+    /// </summary>
+    private async Task LoadResultsDataAsync(int selectedFancierId)
+    {
+        currentData = await flightResultsReader.GetFlightResultsAsync(selectedFancierId);
+
+        ProfileGrid.ItemsSource = currentData.PigeonProfiles;
+        ApplyResultsFilter();
+
+        if (currentData.FoodAnalysis is { } analysis && analysis.MixPerformances.Count > 0)
+        {
+            var rows = analysis.MixPerformances.Select(p => new FoodMixPerformanceRow(p)).ToList();
+            FoodAnalysisGrid.ItemsSource = rows;
+            FoodAnalysisStatus.Text = $"{analysis.MixPerformances.Count} voedermix(en) gevonden — gesorteerd op beste gemiddelde positie.";
+        }
+        else
+        {
+            FoodAnalysisGrid.ItemsSource = null;
+            FoodAnalysisStatus.Text = "Nog geen voedergegevens gekoppeld aan vluchten. Synchroniseer om voedergeschiedenis op te bouwen.";
+        }
+
+        LoadBreedAnalysis(currentData);
+
+        var resultCount = currentData.RecentResults.Count;
+        var profileCount = currentData.PigeonProfiles.Count;
+        FlightStatusText.Text = resultCount == 0
+            ? "Geen vluchtresultaten gevonden. Voer een sync uit na afgelopen vluchten."
+            : $"{resultCount} resultaten voor {profileCount} duiven.";
     }
 
     private void LoadBreedAnalysis(FlightResultsPageData data)
@@ -101,6 +112,28 @@ public partial class FlightResultsView : UserControl
         {
             BreedSkillGrid.ItemsSource = null;
             BreedSkillStatus.Text = "Nog geen vaardigheidsgegevens beschikbaar. Synchroniseer om duivenvaardigheden op te bouwen.";
+        }
+    }
+
+    private async void RefreshActiveFlight_Click(object sender, RoutedEventArgs e)
+    {
+        var fancierId = sessionState.Current.SelectedFancier?.Id;
+        if (fancierId is not int selectedFancierId)
+        {
+            ActiveFlightHeaderText.Text = "Selecteer een melker voordat je de actieve vlucht ververst.";
+            return;
+        }
+
+        RefreshActiveFlightButton.IsEnabled = false;
+        try
+        {
+            ActiveFlightHeaderText.Text = "Actieve vlucht verversen…";
+            await LoadActiveFlightsAsync(selectedFancierId);
+            SelectSegment("Active");
+        }
+        finally
+        {
+            RefreshActiveFlightButton.IsEnabled = true;
         }
     }
 
@@ -197,7 +230,7 @@ public partial class FlightResultsView : UserControl
             KpiCompletedCountText.Text = completed.Count.ToString();
             if (completed.Count > 0)
             {
-                CompletedFlightsGrid.ItemsSource = completed;
+                CompletedFlightsGrid.ItemsSource = completed.Select(c => new CompletedFlightRow(c)).ToList();
                 CompletedFlightsGrid.Visibility = Visibility.Visible;
                 CompletedFlightsStatusText.Text = $"{completed.Count} voltooide vlucht(en). Klik op een vlucht om de prijzentabel te bekijken.";
                 var bestPosition = completed.Where(c => c.BestPosition > 0).Select(c => c.BestPosition).DefaultIfEmpty(0).Min();
@@ -230,6 +263,39 @@ public partial class FlightResultsView : UserControl
     private void CategoryFilter_Changed(object sender, SelectionChangedEventArgs e)
     {
         ApplyResultsFilter();
+    }
+
+    private void ClearResultsFilter_Click(object sender, RoutedEventArgs e)
+    {
+        ProfileGrid.SelectedItem = null;
+        CategoryFilterCombo.SelectedIndex = 0;
+        ApplyResultsFilter();
+    }
+
+    private void FoodAnalysisGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (currentData is null)
+            return;
+
+        if (FoodAnalysisGrid.SelectedItem is not FoodMixPerformanceRow row)
+        {
+            FoodMixFlightsGrid.ItemsSource = null;
+            FoodMixFlightsStatus.Text = "Klik op een voedermix hierboven om alle vluchten met die voederverdeling te zien.";
+            return;
+        }
+
+        var flights = currentData.RecentResults
+            .Where(r => r.FoodMix is not null
+                && PigeonFancierTracker.Core.Analytics.FoodImpactCalculator.FoodMixComparer.Instance.Equals(r.FoodMix, row.Mix))
+            .OrderByDescending(r => r.FlightDate)
+            .ToList();
+
+        FoodMixFlightsGrid.ItemsSource = flights;
+
+        var distinctFlights = flights.Select(f => f.FlightId).Distinct().Count();
+        FoodMixFlightsStatus.Text = flights.Count == 0
+            ? $"Geen vluchten gevonden voor voedermix {row.Mix.Display}."
+            : $"Voedermix {row.Mix.Display} — {distinctFlights} vlucht(en), {flights.Count} resultaat(en).";
     }
 
     private void ApplyResultsFilter()
@@ -281,7 +347,7 @@ public partial class FlightResultsView : UserControl
         var showUpcoming = currentSegment == "Upcoming"
             && UpcomingFlightsGrid.SelectedItem is UpcomingFlightInfo up && up.PrizeTable.Count > 0;
         var showCompleted = currentSegment == "Completed"
-            && CompletedFlightsGrid.SelectedItem is CompletedFlightSummary cp && cp.PrizeTable.Count > 0;
+            && CompletedFlightsGrid.SelectedItem is CompletedFlightRow cp && cp.Summary.PrizeTable.Count > 0;
 
         PrizeTableCard.Visibility = showUpcoming ? Visibility.Visible : Visibility.Collapsed;
         CompletedPrizeTableCard.Visibility = showCompleted ? Visibility.Visible : Visibility.Collapsed;
@@ -305,10 +371,11 @@ public partial class FlightResultsView : UserControl
 
     private void CompletedFlightsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CompletedFlightsGrid.SelectedItem is CompletedFlightSummary selected)
+        if (CompletedFlightsGrid.SelectedItem is CompletedFlightRow row)
         {
-            CompletedPrizeTableTitle.Text = $"Prijzentabel — {selected.Location}";
-            CompletedDetailMeta.Text = $"{selected.FlightType} · {selected.DistanceKm} km ({selected.Category}) · " +
+            var selected = row.Summary;
+            CompletedPrizeTableTitle.Text = $"Prijzentabel — {row.Location}";
+            CompletedDetailMeta.Text = $"{selected.FlightType} · {row.DistanceKm} km ({row.Category}) · " +
                 $"{selected.TotalParticipants} deelnemers · {selected.OwnPigeonCount} eigen duiven · " +
                 $"beste {selected.BestPosition}e · {selected.TotalPoints} ptn";
 
@@ -326,6 +393,75 @@ public partial class FlightResultsView : UserControl
             }
         }
         UpdateDetailPanels();
+    }
+
+    private void CompletedFlightsGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    {
+        if (e.EditAction != DataGridEditAction.Commit)
+            return;
+
+        if (e.Row.Item is not CompletedFlightRow row)
+            return;
+
+        // CellEditEnding fires before the binding writes back to the row, so persist
+        // once the committed values have landed on the row object.
+        Dispatcher.BeginInvoke(
+            new Action(async () => await PersistFlightOverrideAsync(row)),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private async Task PersistFlightOverrideAsync(CompletedFlightRow row)
+    {
+        var location = string.IsNullOrWhiteSpace(row.Location) ? null : row.Location.Trim();
+        int? distance = row.DistanceKm > 0 ? row.DistanceKm : null;
+        await SaveAndReloadOverrideAsync(row.FlightId, location, distance, "Kon correctie niet opslaan");
+    }
+
+    private async void ResetFlightOverride_Click(object sender, RoutedEventArgs e)
+    {
+        if (CompletedFlightsGrid.SelectedItem is not CompletedFlightRow row)
+        {
+            CompletedFlightsStatusText.Text = "Selecteer eerst een vlucht om de correctie te herstellen.";
+            return;
+        }
+
+        await SaveAndReloadOverrideAsync(row.FlightId, null, null, "Kon correctie niet herstellen");
+    }
+
+    private async Task SaveAndReloadOverrideAsync(int flightId, string? location, int? distance, string errorPrefix)
+    {
+        var fancierId = sessionState.Current.SelectedFancier?.Id;
+        if (fancierId is not int fid)
+            return;
+
+        try
+        {
+            await flightResultsReader.SaveFlightOverrideAsync(flightId, location, distance);
+
+            // Reload the completed list and the local results dataset so the corrected
+            // distance re-classifies its category and flows through to the Results tab,
+            // distance profiles and food analysis — without leaving the Completed tab.
+            await LoadCompletedFlightsAsync(fid);
+            await LoadResultsDataAsync(fid);
+            ReselectCompletedFlight(flightId);
+        }
+        catch (Exception ex)
+        {
+            FlightStatusText.Text = $"{errorPrefix}: {ex.Message}";
+        }
+    }
+
+    private void ReselectCompletedFlight(int flightId)
+    {
+        foreach (var item in CompletedFlightsGrid.Items)
+        {
+            if (item is CompletedFlightRow r && r.FlightId == flightId)
+            {
+                CompletedFlightsGrid.SelectedItem = item;
+                CompletedFlightsGrid.ScrollIntoView(item);
+                return;
+            }
+        }
     }
 
     private void CopyActiveFlightInfo_Click(object sender, RoutedEventArgs e)

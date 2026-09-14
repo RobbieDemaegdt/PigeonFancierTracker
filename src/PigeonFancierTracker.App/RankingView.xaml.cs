@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using PigeonFancierTracker.Core.Contracts;
+using PigeonFancierTracker.Core.Domain;
 
 namespace PigeonFancierTracker.App;
 
@@ -9,17 +10,51 @@ public partial class RankingView : UserControl
     private readonly IRankingDataReader rankingDataReader;
     private readonly IFlightResultsReader flightResultsReader;
     private readonly ISessionStateService sessionState;
+    private readonly ISyncCoordinator syncCoordinator;
     private RankingPageData? currentData;
 
     public RankingView(
         IRankingDataReader rankingDataReader,
         IFlightResultsReader flightResultsReader,
-        ISessionStateService sessionState)
+        ISessionStateService sessionState,
+        ISyncCoordinator syncCoordinator)
     {
         InitializeComponent();
         this.rankingDataReader = rankingDataReader;
         this.flightResultsReader = flightResultsReader;
         this.sessionState = sessionState;
+        this.syncCoordinator = syncCoordinator;
+    }
+
+    private async void SyncRanking_Click(object sender, RoutedEventArgs e)
+    {
+        if (sessionState.Current.State != SessionState.AuthenticatedReady)
+        {
+            RankingStatusText.Text = "Meld je aan voordat je het klassement synchroniseert.";
+            return;
+        }
+
+        if (syncCoordinator.IsRunning)
+        {
+            RankingStatusText.Text = "Er loopt al een synchronisatie. Even geduld…";
+            return;
+        }
+
+        SyncRankingButton.IsEnabled = false;
+        try
+        {
+            RankingStatusText.Text = "Klassement synchroniseren…";
+            await syncCoordinator.SyncAsync(SyncProfile.Standard);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            RankingStatusText.Text = $"Synchronisatie mislukt: {ex.Message}";
+        }
+        finally
+        {
+            SyncRankingButton.IsEnabled = true;
+        }
     }
 
     public async Task RefreshAsync()
@@ -61,6 +96,40 @@ public partial class RankingView : UserControl
         catch (Exception ex)
         {
             RankingStatusText.Text = $"Fout bij laden: {ex.Message}";
+        }
+    }
+
+    private async void RefreshActiveFlight_Click(object sender, RoutedEventArgs e)
+    {
+        if (sessionState.Current.State != SessionState.AuthenticatedReady)
+        {
+            RankingStatusText.Text = "Meld je aan voordat je de actieve vlucht ververst.";
+            return;
+        }
+
+        var fancierId = sessionState.Current.SelectedFancier?.Id;
+        if (fancierId is not int selectedFancierId)
+        {
+            RankingStatusText.Text = "Selecteer een melker voordat je de actieve vlucht ververst.";
+            return;
+        }
+
+        RefreshActiveFlightButton.IsEnabled = false;
+        try
+        {
+            PredictedStatusText.Text = "Actieve vlucht verversen…";
+            await LoadPredictedRankingAsync(selectedFancierId);
+            RankingStatusText.Text = PredictedTab.Visibility == Visibility.Visible
+                ? "Voorspelling bijgewerkt met de huidige stand van de actieve vlucht."
+                : "Geen actieve regionale vlucht gevonden.";
+        }
+        catch (Exception ex)
+        {
+            RankingStatusText.Text = $"Verversen mislukt: {ex.Message}";
+        }
+        finally
+        {
+            RefreshActiveFlightButton.IsEnabled = true;
         }
     }
 
