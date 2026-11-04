@@ -450,7 +450,7 @@ public partial class ConnectionView : UserControl
     {
         try
         {
-            foreach (Cookie cookie in cookieContainer.GetCookies(new Uri("https://www.pigeonfancier.com")))
+            foreach (Cookie cookie in cookieContainer.GetCookies(new Uri("https://api.pigeonfancier.com")))
             {
                 cookie.Expired = true;
             }

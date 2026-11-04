@@ -8,7 +8,7 @@ namespace PigeonFancierTracker.Infrastructure.Http;
 
 public sealed class HttpClientWriteTransport : IAuthenticatedWriteTransport
 {
-    private const string ApiOrigin = "https://www.pigeonfancier.com";
+    private const string ApiOrigin = "https://api.pigeonfancier.com";
     private static readonly Regex[] AllowedPostPaths =
     [
         new(@"^/api/transfer/bid$", RegexOptions.Compiled),

@@ -8,7 +8,7 @@ namespace PigeonFancierTracker.Infrastructure.Http;
 
 public sealed class LoginService : ILoginService
 {
-    private const string ApiOrigin = "https://www.pigeonfancier.com";
+    private const string ApiOrigin = "https://api.pigeonfancier.com";
     private const string LoginPath = "/api/user/login?useCookies=true&useSessionCookies=false";
     private readonly HttpClient client;
 

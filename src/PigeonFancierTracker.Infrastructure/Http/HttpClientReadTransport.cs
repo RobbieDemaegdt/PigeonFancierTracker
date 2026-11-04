@@ -7,7 +7,7 @@ namespace PigeonFancierTracker.Infrastructure.Http;
 
 public sealed class HttpClientReadTransport : IAuthenticatedReadTransport
 {
-    private const string ApiOrigin = "https://www.pigeonfancier.com";
+    private const string ApiOrigin = "https://api.pigeonfancier.com";
     private readonly HttpClient client;
 
     public HttpClientReadTransport(CookieContainer cookieContainer)
