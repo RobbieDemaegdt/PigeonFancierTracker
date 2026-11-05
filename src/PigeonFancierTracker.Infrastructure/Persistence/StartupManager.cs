@@ -20,7 +20,7 @@ public sealed class StartupManager
         var exePath = Environment.ProcessPath;
         if (exePath is null) return;
 
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
+        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true);
         key?.SetValue(ValueName, $"\"{exePath}\"");
     }
 
